@@ -39,10 +39,7 @@ export default defineSchema({
       v.literal("B2"),
       v.literal("C1")
     ),
-    episodes_per_week: v.optional(v.number()),
-    speech_rate: v.optional(
-      v.union(v.literal("slow"), v.literal("normal"), v.literal("fast"))
-    ),
+    episode_duration: v.optional(v.number()) ?? 10,
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -86,11 +83,11 @@ export default defineSchema({
       v.literal("C1")
     ),
     title: v.string(),
-    cover_image_url: v.optional(v.string()),
+    cover_image_id: v.optional(v.string()),
     summary: v.optional(v.string()),
     topics: v.optional(v.array(v.id("topics"))),
-    transcript: v.optional(v.string()), // consider chunking if very large
-    audioStorageId: v.optional(v.id("_storage")),
+    transcript: v.optional(v.string()),
+    audioStorageId: v.optional(v.string()),
     durationSeconds: v.optional(v.number()),
     status: v.union(
       v.literal("draft"),
@@ -109,27 +106,27 @@ export default defineSchema({
     .index("by_status", ["status"]),
 
   // Background job tracking for AI generation pipeline
-  generation_jobs: defineTable({
-    userId: v.id("users"),
-    episodeId: v.optional(v.id("episodes")),
-    kind: v.optional(v.string()), // e.g. "script", "tts", "mix"
-    model: v.optional(v.string()),
-    params: v.optional(v.any()), // validated in code
-    status: v.union(
-      v.literal("pending"),
-      v.literal("running"),
-      v.literal("succeeded"),
-      v.literal("failed")
-    ),
-    errorMessage: v.optional(v.string()),
-    createdAt: v.number(),
-    startedAt: v.optional(v.number()),
-    completedAt: v.optional(v.number()),
-    updatedAt: v.number(),
-  })
-    .index("by_status", ["status"])
-    .index("by_episode", ["episodeId"])
-    .index("by_user", ["userId"]),
+  // generation_jobs: defineTable({
+  //   userId: v.id("users"),
+  //   episodeId: v.optional(v.id("episodes")),
+  //   kind: v.optional(v.string()), // e.g. "script", "tts", "mix"
+  //   model: v.optional(v.string()),
+  //   params: v.optional(v.any()), // validated in code
+  //   status: v.union(
+  //     v.literal("pending"),
+  //     v.literal("running"),
+  //     v.literal("succeeded"),
+  //     v.literal("failed")
+  //   ),
+  //   errorMessage: v.optional(v.string()),
+  //   createdAt: v.number(),
+  //   startedAt: v.optional(v.number()),
+  //   completedAt: v.optional(v.number()),
+  //   updatedAt: v.number(),
+  // })
+  //   .index("by_status", ["status"])
+  //   .index("by_episode", ["episodeId"])
+  //   .index("by_user", ["userId"]),
 
   // Track listening progress per user per episode
   episode_progress: defineTable({

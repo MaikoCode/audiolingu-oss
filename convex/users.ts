@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -122,6 +122,51 @@ export const completeOnboarding = mutation({
   },
 });
 
+export const learningProfile = internalQuery({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return null;
+
+    const activeProfile = await ctx.db
+      .query("learning_profiles")
+      .withIndex("by_user_active", (q) =>
+        q.eq("userId", args.userId).eq("active", true)
+      )
+      .unique();
+
+    const fallbackTargetLanguage = user.target_language;
+    const fallbackProficiency = user.proficiency_level;
+
+    if (!fallbackTargetLanguage) {
+      throw new Error("Target language is required");
+    }
+    if (!fallbackProficiency) {
+      throw new Error("Proficiency level is required");
+    }
+
+    const learning = activeProfile;
+
+    const links = await ctx.db
+      .query("user_interests")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    const topics = await Promise.all(links.map((l) => ctx.db.get(l.topicId)));
+    const interests = topics.filter(Boolean).map((t) => t?.slug);
+
+    return {
+      learningProfile: {
+        target_language: learning?.target_language,
+        proficiency_level: learning?.proficiency_level,
+        episode_duration: learning?.episode_duration ?? 10,
+      },
+      interests,
+    };
+  },
+});
+
 // Shared helper to ensure a user document exists for the current identity
 const ensureUser = async (ctx: MutationCtx) => {
   const identity = await ctx.auth.getUserIdentity();
@@ -137,7 +182,7 @@ const ensureUser = async (ctx: MutationCtx) => {
 
   const email = identity.email ?? "";
   const fullName = identity.name ?? "";
-  const imageUrl = undefined;
+  const imageUrl = identity.pictureUrl ?? undefined;
 
   const [firstName, ...lastParts] = fullName.split(" ");
   const lastName = lastParts.join(" ");
