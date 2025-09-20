@@ -11,6 +11,7 @@
 import type * as agents from "../agents.js";
 import type * as auth from "../auth.js";
 import type * as elevenlabs from "../elevenlabs.js";
+import type * as episodes from "../episodes.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
 import type * as r2 from "../r2.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   agents: typeof agents;
   auth: typeof auth;
   elevenlabs: typeof elevenlabs;
+  episodes: typeof episodes;
   http: typeof http;
   images: typeof images;
   r2: typeof r2;

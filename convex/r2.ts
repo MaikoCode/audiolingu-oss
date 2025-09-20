@@ -39,7 +39,7 @@ export const storeAudioFromBytes = internalAction({
 
     const r2Key = await r2.store(ctx, audioBytes, {
       key, // omit for default UUID
-      type: contentType ?? "audio/mp3",
+      type: contentType ?? "audio/mpeg",
     });
 
     return { key: r2Key };

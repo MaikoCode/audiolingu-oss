@@ -3,6 +3,8 @@ import { Agent, createTool } from "@convex-dev/agent";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { z } from "zod";
+import { internalAction } from "./_generated/server";
+import { v } from "convex/values";
 
 export const pullUserProfile = createTool({
   description: "Pull the user's profile and interests",
@@ -73,7 +75,7 @@ export const podcast_writer = new Agent(components.agent, {
   tools: {
     pullUserProfile,
   },
-  maxSteps: 3,
+  maxSteps: 5,
 });
 
 const SCRIPT_SUMMARIZER_INSTRUCTIONS = `
@@ -111,4 +113,36 @@ export const script_summarizer = new Agent(components.agent, {
   languageModel: "openai/gpt-5",
   instructions: SCRIPT_SUMMARIZER_INSTRUCTIONS,
   maxSteps: 3,
+});
+
+// Internal actions wrapping specific agent calls for workflows
+export const generatePodcastScript = internalAction({
+  args: { userId: v.string() },
+  handler: async (ctx, args) => {
+    const { thread } = await podcast_writer.continueThread(ctx, {
+      threadId: (
+        await podcast_writer.createThread(ctx, { userId: args.userId })
+      ).threadId,
+      userId: args.userId,
+    });
+    const result = await thread.generateText({
+      prompt: "Generate the full TTS-ready script using available tools.",
+    });
+    return result.text;
+  },
+});
+
+export const buildImagePromptFromScript = internalAction({
+  args: { script: v.string() },
+  handler: async (ctx, args) => {
+    const { thread } = await script_summarizer.continueThread(ctx, {
+      threadId: (await script_summarizer.createThread(ctx, {})).threadId,
+    });
+    const result = await thread.generateText({
+      prompt:
+        "Analyze the script and return a single, vivid, concise image generation prompt only.\nScript:\n" +
+        args.script,
+    });
+    return result.text;
+  },
 });
