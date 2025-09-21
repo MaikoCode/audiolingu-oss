@@ -3,6 +3,8 @@
 import { ElevenLabsClient } from "@elevenlabs/elevenlabs-js";
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
+import { R2 } from "@convex-dev/r2";
+import { components } from "./_generated/api";
 
 const elevenlabs = new ElevenLabsClient();
 
@@ -12,6 +14,7 @@ export const generateAudio = internalAction({
     voiceId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const r2 = new R2(components.r2);
     const voiceId = args.voiceId || "KoVIHoyLDrQyd4pGalbs";
     const audioStream = await elevenlabs.textToSpeech.convert(voiceId, {
       text: args.script,
@@ -36,7 +39,8 @@ export const generateAudio = internalAction({
       merged.set(chunk, offset);
       offset += chunk.length;
     }
-    const bytes = Array.from(merged);
-    return { bytes, contentType: "audio/mpeg" } as const;
+    // Store directly to R2 to avoid returning huge arrays from actions
+    const key = await r2.store(ctx, merged, { type: "audio/mpeg" });
+    return { key, contentType: "audio/mpeg" } as const;
   },
 });

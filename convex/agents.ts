@@ -9,7 +9,7 @@ import { v } from "convex/values";
 export const pullUserProfile = createTool({
   description: "Pull the user's profile and interests",
   args: z.object({
-    userId: z.string().describe("The user's id"),
+    userId: z.string().describe("The user's id or 'current_user'"),
   }),
   handler: async (
     ctx,
@@ -24,8 +24,29 @@ export const pullUserProfile = createTool({
   }> => {
     // ctx has agent, userId, threadId, messageId
     // as well as ActionCtx properties like auth, storage, runMutation, and runAction
+    // Prefer the userId attached to this agent thread (set in createThread)
+    // Try to read the user id attached to the agent thread context
+    const maybeCtx = ctx as unknown as { userId?: string };
+    let targetUserId: Id<"users"> | null = maybeCtx.userId
+      ? (maybeCtx.userId as unknown as Id<"users">)
+      : null;
+
+    // Fall back to explicit arg, or try resolving "current_user"
+    if (!targetUserId) {
+      if (args.userId === "current_user" || args.userId === "me") {
+        const me = await ctx.runQuery(internal.users.current, {});
+        targetUserId = me?._id ?? null;
+      } else if (args.userId) {
+        targetUserId = args.userId as unknown as Id<"users">;
+      }
+    }
+
+    if (!targetUserId) {
+      throw new Error("Unable to resolve user id");
+    }
+
     const result = await ctx.runQuery(internal.users.learningProfile, {
-      userId: args.userId as Id<"users">,
+      userId: targetUserId,
     });
 
     if (!result) {
@@ -64,6 +85,7 @@ Write numbers and dates in word form (e.g., "twenty twenty-four" not "2024")
 Include pronunciation guides in brackets for technical terms [TECH-ni-cal]
 Create engaging, conversational tone without relying on vocal inflection cues
 Ensure content flows logically since there won't be human ad-libs or corrections
+And don't announce the title of the next episode
 
 Deliverable: A TTS-optimized podcast script that sounds natural and engaging when synthesized, incorporating the user's unique profile while being technically compatible with text-to-speech systems.
 `;
@@ -75,7 +97,7 @@ export const podcast_writer = new Agent(components.agent, {
   tools: {
     pullUserProfile,
   },
-  maxSteps: 5,
+  maxSteps: 10,
 });
 
 const SCRIPT_SUMMARIZER_INSTRUCTIONS = `
@@ -105,7 +127,7 @@ Consider thumbnail/cover art requirements if applicable
 Ensure the visual concept would appeal to the podcast's target audience
 
 Deliverable: A well-crafted image generation prompt that visually encapsulates the podcast episode's essence, optimized for AI image generation tools and suitable for podcast cover art, social media, or promotional materials.
-This version provides clear structure for analyzing scripts and converting them into effective visual prompts.
+This version provides clear structure for analyzing scripts and converting them into effective visual prompts. The image prompt should be in ENGLISH.
 `;
 
 export const script_summarizer = new Agent(components.agent, {
@@ -128,6 +150,7 @@ export const generatePodcastScript = internalAction({
     const result = await thread.generateText({
       prompt: "Generate the full TTS-ready script using available tools.",
     });
+    console.log("The script is: ", result.text);
     return result.text;
   },
 });
@@ -143,6 +166,42 @@ export const buildImagePromptFromScript = internalAction({
         "Analyze the script and return a single, vivid, concise image generation prompt only.\nScript:\n" +
         args.script,
     });
+    console.log("The image prompt is: ", result.text);
     return result.text;
+  },
+});
+
+// Title generator agent
+const TITLE_GENERATOR_INSTRUCTIONS = `
+You create short, catchy episode titles from a provided podcast script.
+Rules:
+- 3 to 9 words, sentence case (capitalize first word and proper nouns)
+- No quotes, emojis, or trailing punctuation
+- Clear, engaging, reflective of the script’s main topic and tone
+- If a target language is obvious from the script, title should be in that language; otherwise use English.
+Return ONLY the title text.
+`;
+
+export const title_generator = new Agent(components.agent, {
+  name: "Title Generator",
+  languageModel: "openai/gpt-5",
+  instructions: TITLE_GENERATOR_INSTRUCTIONS,
+  maxSteps: 1,
+});
+
+export const generateTitleFromScript = internalAction({
+  args: { script: v.string() },
+  handler: async (ctx, args) => {
+    const { thread } = await title_generator.continueThread(ctx, {
+      threadId: (await title_generator.createThread(ctx, {})).threadId,
+    });
+    const result = await thread.generateText({
+      prompt:
+        "Generate a concise, catchy title for this podcast script. Return only the title.\n\nScript:\n" +
+        args.script,
+    });
+    console.log("The title is: ", result.text);
+    // Basic sanitation: collapse lines and trim
+    return result.text.replace(/\s+/g, " ").trim();
   },
 });

@@ -1,8 +1,9 @@
 import { v } from "convex/values";
-import { internal } from "./_generated/api";
+import { internal, api } from "./_generated/api";
 import { WorkflowManager } from "@convex-dev/workflow";
 import { components } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { action, query } from "./_generated/server";
 
 export const workflow = new WorkflowManager(components.workflow);
 
@@ -24,6 +25,8 @@ export const podcastGenerationWorkflow = workflow.define({
     });
 
     if (!profile) throw new Error("Missing learning profile");
+    console.log("The profile is: ", profile);
+    console.log("The interests are: ", profile.interests);
 
     // 1- Create an episode draft
     const { episodeId }: { episodeId: Id<"episodes"> } = await step.runMutation(
@@ -46,14 +49,22 @@ export const podcastGenerationWorkflow = workflow.define({
     const script: string = await step.runAction(
       internal.agents.generatePodcastScript,
       {
-        userId: args.userId as Id<"users"> as unknown as string,
+        userId: (args.userId as unknown as string) ?? "current_user",
       }
     );
+    // 2b - Generate a concise episode title
+    const episodeTitle = await step.runAction(
+      internal.agents.generateTitleFromScript,
+      { script }
+    );
+
     await step.runMutation(
       internal.episodes.setScript,
       {
         episodeId,
         script,
+        title: episodeTitle || "Personalized Episode",
+        summary: undefined,
       },
       { name: "set-episode-script" }
     );
@@ -66,24 +77,21 @@ export const podcastGenerationWorkflow = workflow.define({
       },
       { name: "build-image-prompt" }
     );
-    const imageUrl = await step.runAction(internal.images.generateCoverImage, {
+    const coverKey = await step.runAction(internal.images.generateCoverImage, {
       script: imagePrompt,
     });
-    if (imageUrl) {
-      const stored = await step.runAction(internal.r2.storeImageFromUrl, {
-        imageUrl,
-      });
+    if (coverKey) {
       await step.runMutation(
         internal.episodes.setCoverImage,
         {
           episodeId,
-          coverKey: stored.key,
+          coverKey,
         },
         { name: "set-episode-cover-image" }
       );
     }
 
-    // 4- Generate audio via ElevenLabs and store in R2
+    // 4- Generate audio via ElevenLabs (already stored in R2) and save key
     const audio = await step.runAction(
       internal.elevenlabs.generateAudio,
       {
@@ -91,19 +99,11 @@ export const podcastGenerationWorkflow = workflow.define({
       },
       { name: "generate-audio" }
     );
-    const storedAudio = await step.runAction(
-      internal.r2.storeAudioFromBytes,
-      {
-        bytes: audio.bytes,
-        contentType: audio.contentType,
-      },
-      { name: "store-audio" }
-    );
     await step.runMutation(
       internal.episodes.setAudio,
       {
         episodeId,
-        audioKey: storedAudio.key,
+        audioKey: audio.key,
       },
       { name: "set-episode-audio" }
     );
@@ -120,5 +120,45 @@ export const podcastGenerationWorkflow = workflow.define({
     );
 
     return { episodeId } as const;
+  },
+});
+
+// Public action: start the podcast generation workflow for current user
+export const startMyPodcastGeneration = action({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    // Resolve current user from our users table via public query
+    const currentUser = await ctx.runQuery(api.users.me, {});
+    if (!currentUser) throw new Error("User not found");
+
+    await workflow.start(ctx, internal.workflows.podcastGenerationWorkflow, {
+      userId: currentUser._id,
+    });
+
+    return { ok: true } as const;
+  },
+});
+
+// Public query: minimal user greeting info
+export const myGreeting = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user) return null;
+
+    return {
+      first_name: user.first_name,
+      target_language: user.target_language,
+    } as const;
   },
 });

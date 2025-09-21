@@ -1,5 +1,5 @@
 // convex/media.ts
-import { internalAction } from "./_generated/server";
+import { internalAction, query } from "./_generated/server";
 import { components } from "./_generated/api";
 import { R2 } from "@convex-dev/r2";
 import { v } from "convex/values";
@@ -43,5 +43,33 @@ export const storeAudioFromBytes = internalAction({
     });
 
     return { key: r2Key };
+  },
+});
+
+export const storeImageFromBytes = internalAction({
+  args: {
+    bytes: v.array(v.number()),
+    key: v.optional(v.string()),
+    contentType: v.optional(v.string()),
+  },
+  handler: async (ctx, { bytes, key, contentType }) => {
+    const imageBytes = new Uint8Array(bytes);
+    const r2Key = await r2.store(ctx, imageBytes, {
+      key,
+      type: contentType ?? "image/png",
+    });
+    return { key: r2Key };
+  },
+});
+
+// Public query to get a signed URL for a given R2 key
+export const getUrlForKey = query({
+  args: {
+    key: v.string(),
+    expiresIn: v.optional(v.number()),
+  },
+  handler: async (_ctx, { key, expiresIn }) => {
+    const url = await r2.getUrl(key, { expiresIn });
+    return { url } as const;
   },
 });

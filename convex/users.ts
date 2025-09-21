@@ -20,6 +20,21 @@ export const me = query({
   },
 });
 
+export const current = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    return existing ?? null;
+  },
+});
+
 export const ensure = mutation({
   args: {},
   handler: async (ctx) => {
@@ -160,7 +175,7 @@ export const learningProfile = internalQuery({
       learningProfile: {
         target_language: learning?.target_language,
         proficiency_level: learning?.proficiency_level,
-        episode_duration: learning?.episode_duration ?? 10,
+        episode_duration: learning?.episode_duration ?? 5,
       },
       interests,
     };

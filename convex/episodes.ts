@@ -1,4 +1,5 @@
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
 
@@ -53,12 +54,13 @@ export const setScript = internalMutation({
     summary: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.episodeId, {
+    const update: Record<string, unknown> = {
       transcript: args.script,
-      title: args.title,
-      summary: args.summary,
       updatedAt: now(),
-    });
+    };
+    if (args.title !== undefined) update.title = args.title;
+    if (args.summary !== undefined) update.summary = args.summary;
+    await ctx.db.patch(args.episodeId, update);
   },
 });
 
@@ -117,5 +119,61 @@ export const get = internalQuery({
   args: { episodeId: v.id("episodes") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.episodeId);
+  },
+});
+
+// Public queries for listing episodes for the current user
+export const myRecentEpisodes = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user) return [];
+
+    const limit = Math.min(Math.max(args.limit ?? 5, 1), 20);
+    const page = await ctx.db
+      .query("episodes")
+      .withIndex("by_user_createdAt", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .paginate({ cursor: null, numItems: limit });
+
+    return page.page;
+  },
+});
+
+export const myEpisodesPaginated = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity)
+      return await ctx.db
+        .query("episodes")
+        .order("desc")
+        .paginate({ cursor: null, numItems: 0 });
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user)
+      return await ctx.db
+        .query("episodes")
+        .order("desc")
+        .paginate({ cursor: null, numItems: 0 });
+
+    return await ctx.db
+      .query("episodes")
+      .withIndex("by_user_createdAt", (q) => q.eq("userId", user._id))
+      .order("desc")
+      .paginate(args.paginationOpts);
   },
 });
