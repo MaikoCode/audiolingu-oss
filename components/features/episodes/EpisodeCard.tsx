@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import React from "react";
+import AudioPlayer from "./AudioPlayer";
 import {
   Card,
   CardContent,
@@ -41,34 +42,9 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
     episode.audioStorageId ? { key: episode.audioStorageId } : "skip"
   );
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  // reserved for future inline controls
 
-  useEffect(() => {
-    const el = audioRef.current;
-    if (!el) return;
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => setIsPlaying(false);
-    el.addEventListener("play", handlePlay);
-    el.addEventListener("pause", handlePause);
-    el.addEventListener("ended", handleEnded);
-    return () => {
-      el.removeEventListener("play", handlePlay);
-      el.removeEventListener("pause", handlePause);
-      el.removeEventListener("ended", handleEnded);
-    };
-  }, []);
-
-  const handlePlayClick = () => {
-    const el = audioRef.current;
-    if (!el || !audio?.url) return;
-    if (isPlaying) {
-      el.pause();
-      return;
-    }
-    el.play();
-  };
+  // Legacy play handler removed in favor of AudioPlayer
 
   return (
     <Card
@@ -134,24 +110,19 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
                 </p>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  className="bg-gradient-to-r from-primary to-secondary"
-                  onClick={handlePlayClick}
-                  aria-label={isPlaying ? "Pause audio" : "Play audio"}
-                  disabled={!audio?.url}
-                >
-                  {isPlaying ? "⏸️ Pause" : "▶️ Play"}
-                </Button>
-                <Button size="sm" variant="ghost">
-                  ❤️
-                </Button>
-                <Button size="sm" variant="ghost">
-                  ⬇️
-                </Button>
-                {/* Hidden audio element used for playback */}
-                <audio ref={audioRef} src={audio?.url} preload="none" />
+              <div className="flex w-full flex-col gap-2">
+                <AudioPlayer
+                  src={audio?.url}
+                  title={episode.title ?? "Episode"}
+                />
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="ghost">
+                    ❤️
+                  </Button>
+                  <Button size="sm" variant="ghost">
+                    ⬇️
+                  </Button>
+                </div>
               </div>
             )}
           </div>
