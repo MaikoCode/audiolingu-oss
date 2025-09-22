@@ -182,6 +182,142 @@ export const learningProfile = internalQuery({
   },
 });
 
+export const getMySettings = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user) return null;
+
+    const activeProfile = await ctx.db
+      .query("learning_profiles")
+      .withIndex("by_user_active", (q) =>
+        q.eq("userId", user._id).eq("active", true)
+      )
+      .unique();
+
+    return {
+      userId: user._id,
+      target_language:
+        activeProfile?.target_language ?? user.target_language ?? null,
+      proficiency_level:
+        activeProfile?.proficiency_level ?? user.proficiency_level ?? null,
+      episode_duration: activeProfile?.episode_duration ?? 10,
+      preferred_voice: user.preferred_voice ?? null,
+    } as const;
+  },
+});
+
+export const updateLearningSettings = mutation({
+  args: {
+    target_language: v.optional(v.string()),
+    proficiency_level: v.optional(
+      v.union(
+        v.literal("A1"),
+        v.literal("A2"),
+        v.literal("B1"),
+        v.literal("B2"),
+        v.literal("C1")
+      )
+    ),
+    episode_duration: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user) throw new Error("User not found");
+
+    // Update quick-access fields on user if provided
+    if (args.target_language || args.proficiency_level) {
+      await ctx.db.patch(user._id, {
+        target_language: args.target_language ?? user.target_language,
+        proficiency_level:
+          (args.proficiency_level as typeof user.proficiency_level) ??
+          user.proficiency_level,
+        updatedAt: now(),
+      });
+    }
+
+    // Upsert active learning profile
+    let activeProfile = await ctx.db
+      .query("learning_profiles")
+      .withIndex("by_user_active", (q) =>
+        q.eq("userId", user._id).eq("active", true)
+      )
+      .unique();
+
+    if (!activeProfile) {
+      const newProfileId = await ctx.db.insert("learning_profiles", {
+        userId: user._id,
+        active: true,
+        target_language: args.target_language ?? user.target_language ?? "en",
+        proficiency_level:
+          (args.proficiency_level as NonNullable<
+            typeof user.proficiency_level
+          >) ??
+          (user.proficiency_level as NonNullable<
+            typeof user.proficiency_level
+          >) ??
+          "A1",
+        episode_duration: args.episode_duration ?? 10,
+        createdAt: now(),
+        updatedAt: now(),
+      });
+      activeProfile = (await ctx.db.get(newProfileId))!;
+    } else {
+      await ctx.db.patch(activeProfile._id, {
+        target_language: args.target_language ?? activeProfile.target_language,
+        proficiency_level:
+          (args.proficiency_level as typeof activeProfile.proficiency_level) ??
+          activeProfile.proficiency_level,
+        episode_duration:
+          args.episode_duration ?? activeProfile.episode_duration,
+        updatedAt: now(),
+      });
+    }
+
+    return { ok: true } as const;
+  },
+});
+
+export const setPreferredVoice = mutation({
+  args: {
+    voiceId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user) throw new Error("User not found");
+
+    await ctx.db.patch(user._id, {
+      preferred_voice: args.voiceId,
+      updatedAt: now(),
+    });
+    return { ok: true } as const;
+  },
+});
+
 // Shared helper to ensure a user document exists for the current identity
 const ensureUser = async (ctx: MutationCtx) => {
   const identity = await ctx.auth.getUserIdentity();
