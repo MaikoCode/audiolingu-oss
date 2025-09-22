@@ -12,22 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { EpisodeCard } from "@/components/features/episodes/EpisodeCard";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { LANGUAGES } from "@/components/features/onboarding/constants";
+import type { Doc } from "@/convex/_generated/dataModel";
 
-type Episode = {
-  _id: string;
-  title?: string;
-  language: string;
-  proficiency_level: "A1" | "A2" | "B1" | "B2" | "C1";
-  cover_image_id?: string;
-  summary?: string;
-  transcript?: string;
-  audioStorageId?: string;
-  durationSeconds?: number;
-  status: "draft" | "queued" | "generating" | "ready" | "failed";
-  _creationTime: number;
-};
+type Episode = Doc<"episodes">;
 
 export default function DashboardPage() {
   const greeting = useQuery(api.workflows.myGreeting, {});
@@ -39,12 +28,20 @@ export default function DashboardPage() {
     return LANGUAGES.find((l) => l.code === code)?.name || code;
   }, [greeting?.target_language]);
 
+  const [isGenerateDisabled, setIsGenerateDisabled] = useState<boolean>(false);
+
   const handleGenerate = async () => {
-    await startGeneration({});
+    if (isGenerateDisabled) return;
+    setIsGenerateDisabled(true);
+    try {
+      await startGeneration({});
+    } finally {
+      setTimeout(() => setIsGenerateDisabled(false), 7000);
+    }
   };
 
   return (
-    <div className="p-6 md:p-8">
+    <div className="p-6 md:p-8 max-w-4xl mx-auto">
       <div className="mb-8">
         <h2 className="text-3xl font-bold mb-2">
           {`Welcome back ${greeting?.first_name ?? ""}`} ✨
@@ -55,33 +52,24 @@ export default function DashboardPage() {
       <div className="max-w-4xl space-y-6">
         <Card className="border-secondary/30 bg-gradient-to-br from-secondary/10 to-accent/10">
           <CardHeader>
-            <CardTitle className="text-xl">
-              Want Something Specific? ✨
-            </CardTitle>
-            <CardDescription>
-              Generate a custom episode on any topic you choose
-            </CardDescription>
+            <CardTitle className="text-xl">Generate Episode ✨</CardTitle>
+            <CardDescription>Wanna generate more episodes?</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Create personalized episodes beyond your daily content. Choose
-                  your own topics and get instant AI-generated lessons.
+                  🎯 Hit your fluency goal with a new episode.
                 </p>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>✨ Custom topics</span>
-                  <span>•</span>
-                  <span>🎯 Your level</span>
-                  <span>•</span>
-                  <span>⚡ Instant generation</span>
-                </div>
               </div>
               <Button
                 onClick={handleGenerate}
-                className="bg-gradient-to-r from-secondary to-accent"
+                disabled={isGenerateDisabled}
+                aria-disabled={isGenerateDisabled}
+                aria-busy={isGenerateDisabled}
+                className="bg-gradient-to-r from-secondary to-accent hover:from-secondary/80 hover:to-accent/80 active:scale-95 transition-all duration-200"
               >
-                ✨ Generate Episode
+                {isGenerateDisabled ? "Please wait..." : "Generate Episode"}
               </Button>
             </div>
           </CardContent>
@@ -114,19 +102,19 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Episode Library</CardTitle>
-            <CardDescription>
-              Daily episodes and your custom generations
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {recent?.slice(1).map((ep: Episode) => (
-              <EpisodeCard key={ep._id} episode={ep} />
-            ))}
-          </CardContent>
-        </Card>
+        {recent && recent.length > 1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Your Episode Library</CardTitle>
+              <CardDescription>Daily episodes</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {recent?.slice(1, 5).map((ep: Episode) => (
+                <EpisodeCard key={ep._id} episode={ep} />
+              ))}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

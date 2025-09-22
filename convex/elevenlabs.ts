@@ -44,3 +44,24 @@ export const generateAudio = internalAction({
     return { key, contentType: "audio/mpeg" } as const;
   },
 });
+
+export const getVoices = internalAction({
+  args: {
+    language: v.string(),
+    gender: v.optional(v.string()),
+    category: v.optional(v.string()),
+    age: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const voices = await elevenlabs.voices.getShared({
+      language: args.language,
+      gender: args.gender,
+      age: args.age,
+      // @ts-expect-error - deactivated
+      category: args.category,
+      page_size: 10,
+    });
+
+    return voices;
+  },
+});

@@ -1,9 +1,13 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as SliderPrimitive from "@radix-ui/react-slider"
+import * as React from "react";
+import * as SliderPrimitive from "@radix-ui/react-slider";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
+
+type SliderProps = React.ComponentProps<typeof SliderPrimitive.Root> & {
+  buffered?: number;
+};
 
 function Slider({
   className,
@@ -11,8 +15,9 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  buffered,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: SliderProps) {
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -21,7 +26,7 @@ function Slider({
           ? defaultValue
           : [min, max],
     [value, defaultValue, min, max]
-  )
+  );
 
   return (
     <SliderPrimitive.Root
@@ -42,6 +47,16 @@ function Slider({
           "bg-muted relative grow overflow-hidden rounded-full data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5"
         )}
       >
+        {/* Buffered trail */}
+        {typeof buffered === "number" ? (
+          <div
+            aria-hidden
+            className={cn(
+              "absolute left-0 top-0 h-full bg-muted-foreground/25"
+            )}
+            style={{ width: `${Math.min(100, Math.max(0, buffered))}%` }}
+          />
+        ) : null}
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={cn(
@@ -57,7 +72,7 @@ function Slider({
         />
       ))}
     </SliderPrimitive.Root>
-  )
+  );
 }
 
-export { Slider }
+export { Slider };

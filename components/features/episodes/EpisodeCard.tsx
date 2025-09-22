@@ -16,9 +16,17 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+import type { Id } from "@/convex/_generated/dataModel";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type Episode = {
-  _id: string;
+  _id: Id<"episodes">;
   title?: string;
   language: string;
   proficiency_level: "A1" | "A2" | "B1" | "B2" | "C1";
@@ -29,6 +37,7 @@ type Episode = {
   durationSeconds?: number;
   status: "draft" | "queued" | "generating" | "ready" | "failed";
   _creationTime: number;
+  feedback?: "good" | "bad";
 };
 
 export const EpisodeCard = ({ episode }: { episode: Episode }) => {
@@ -41,6 +50,15 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
     api.r2.getUrlForKey,
     episode.audioStorageId ? { key: episode.audioStorageId } : "skip"
   );
+  const setFeedback = useMutation(api.episodes.setFeedback);
+
+  const handleSetFeedback = async (value: "good" | "bad" | undefined) => {
+    try {
+      await setFeedback({ episodeId: episode._id, feedback: value });
+    } catch {
+      // no-op
+    }
+  };
 
   // reserved for future inline controls
 
@@ -115,14 +133,48 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
                   src={audio?.url}
                   title={episode.title ?? "Episode"}
                 />
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="ghost">
-                    ❤️
-                  </Button>
-                  <Button size="sm" variant="ghost">
-                    ⬇️
-                  </Button>
-                </div>
+                <TooltipProvider>
+                  <div className="flex items-center gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant={
+                            episode.feedback === "good" ? "default" : "ghost"
+                          }
+                          aria-label="Like this episode"
+                          onClick={() =>
+                            handleSetFeedback(
+                              episode.feedback === "good" ? undefined : "good"
+                            )
+                          }
+                        >
+                          ❤️
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Like</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant={
+                            episode.feedback === "bad" ? "destructive" : "ghost"
+                          }
+                          aria-label="Downvote this episode"
+                          onClick={() =>
+                            handleSetFeedback(
+                              episode.feedback === "bad" ? undefined : "bad"
+                            )
+                          }
+                        >
+                          ⬇️
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Downvote</TooltipContent>
+                    </Tooltip>
+                  </div>
+                </TooltipProvider>
               </div>
             )}
           </div>

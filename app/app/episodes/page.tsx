@@ -5,20 +5,9 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { EpisodeCard } from "@/components/features/episodes/EpisodeCard";
 import { Button } from "@/components/ui/button";
+import type { Doc } from "@/convex/_generated/dataModel";
 
-type Episode = {
-  _id: string;
-  title?: string;
-  language: string;
-  proficiency_level: "A1" | "A2" | "B1" | "B2" | "C1";
-  cover_image_id?: string;
-  summary?: string;
-  transcript?: string;
-  audioStorageId?: string;
-  durationSeconds?: number;
-  status: "draft" | "queued" | "generating" | "ready" | "failed";
-  _creationTime: number;
-};
+type Episode = Doc<"episodes">;
 
 export default function EpisodesPage() {
   const [cursor, setCursor] = useState<string | null>(null);
@@ -32,12 +21,12 @@ export default function EpisodesPage() {
     setItems((prev) => {
       const existingIds = new Set(prev.map((e) => e._id));
       const merged = [...prev];
-      for (const ep of page.page as unknown as Episode[]) {
+      for (const ep of page.page) {
         if (!existingIds.has(ep._id)) merged.push(ep);
       }
       return merged;
     });
-  }, [page?.continueCursor]);
+  }, [page, page?.continueCursor]);
 
   const canLoadMore = useMemo(() => page && !page.isDone, [page]);
 

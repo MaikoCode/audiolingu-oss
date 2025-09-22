@@ -21,6 +21,7 @@ export default defineSchema({
         v.literal("C1")
       )
     ),
+    preferred_voice: v.optional(v.string()),
     createdAt: v.number(), // ms epoch
     updatedAt: v.number(),
   })
@@ -96,6 +97,8 @@ export default defineSchema({
       v.literal("ready"),
       v.literal("failed")
     ),
+    feedback: v.optional(v.union(v.literal("good"), v.literal("bad"))),
+    feedbackComment: v.optional(v.string()),
     errorMessage: v.optional(v.string()),
     createdAt: v.number(),
     publishedAt: v.optional(v.number()),
@@ -104,29 +107,6 @@ export default defineSchema({
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_user_status", ["userId", "status"])
     .index("by_status", ["status"]),
-
-  // Background job tracking for AI generation pipeline
-  // generation_jobs: defineTable({
-  //   userId: v.id("users"),
-  //   episodeId: v.optional(v.id("episodes")),
-  //   kind: v.optional(v.string()), // e.g. "script", "tts", "mix"
-  //   model: v.optional(v.string()),
-  //   params: v.optional(v.any()), // validated in code
-  //   status: v.union(
-  //     v.literal("pending"),
-  //     v.literal("running"),
-  //     v.literal("succeeded"),
-  //     v.literal("failed")
-  //   ),
-  //   errorMessage: v.optional(v.string()),
-  //   createdAt: v.number(),
-  //   startedAt: v.optional(v.number()),
-  //   completedAt: v.optional(v.number()),
-  //   updatedAt: v.number(),
-  // })
-  //   .index("by_status", ["status"])
-  //   .index("by_episode", ["episodeId"])
-  //   .index("by_user", ["userId"]),
 
   // Track listening progress per user per episode
   episode_progress: defineTable({
@@ -140,29 +120,4 @@ export default defineSchema({
   })
     .index("by_user_episode", ["userId", "episodeId"])
     .index("by_episode", ["episodeId"]),
-
-  // User feedback for quality/difficulty tuning
-  feedback: defineTable({
-    userId: v.id("users"),
-    episodeId: v.id("episodes"),
-    difficulty: v.optional(v.union(v.literal("good"), v.literal("bad"))),
-    comment: v.optional(v.string()),
-    createdAt: v.number(),
-  })
-    .index("by_episode", ["episodeId"])
-    .index("by_user", ["userId"]),
-
-  // Optional: delivery scheduling preferences
-  schedules: defineTable({
-    userId: v.id("users"),
-    timezone: v.string(), // IANA tz, e.g. "Europe/Berlin"
-    preferredHourLocal: v.number(), // 0-23
-    preferredMinuteLocal: v.number(), // 0-59
-    nextScheduledAt: v.optional(v.number()),
-    active: v.boolean(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
-  })
-    .index("by_user", ["userId"])
-    .index("by_next", ["nextScheduledAt"]),
 });

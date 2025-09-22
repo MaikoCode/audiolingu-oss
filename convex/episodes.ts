@@ -1,4 +1,9 @@
-import { internalMutation, internalQuery, query } from "./_generated/server";
+import {
+  internalMutation,
+  internalQuery,
+  query,
+  mutation,
+} from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
@@ -174,5 +179,34 @@ export const myEpisodesPaginated = query({
       .withIndex("by_user_createdAt", (q) => q.eq("userId", user._id))
       .order("desc")
       .paginate(args.paginationOpts);
+  },
+});
+
+export const setFeedback = mutation({
+  args: {
+    episodeId: v.id("episodes"),
+    feedback: v.optional(v.union(v.literal("good"), v.literal("bad"))),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user) throw new Error("Unauthorized");
+
+    const episode = await ctx.db.get(args.episodeId);
+    if (!episode || episode.userId !== user._id) throw new Error("Not found");
+
+    await ctx.db.patch(args.episodeId, {
+      feedback: args.feedback,
+      updatedAt: now(),
+    });
+
+    return { ok: true } as const;
   },
 });

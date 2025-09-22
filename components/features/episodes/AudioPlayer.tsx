@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +38,7 @@ export const AudioPlayer = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [bufferedTime, setBufferedTime] = useState(0);
   const [seeking, setSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
   const [rate, setRate] = useState(1);
@@ -76,18 +78,34 @@ export const AudioPlayer = ({
       rafRef.current = requestAnimationFrame(step);
     };
     const handleTimeUpdate = () => setCurrentTime(el.currentTime);
+    const handleProgress = () => {
+      try {
+        if (!el.buffered || el.buffered.length === 0) return setBufferedTime(0);
+        const lastIndex = el.buffered.length - 1;
+        const end = el.buffered.end(lastIndex);
+        setBufferedTime(Math.min(end, el.duration || end));
+      } catch {
+        setBufferedTime(0);
+      }
+    };
 
     el.addEventListener("loadedmetadata", handleLoaded);
     el.addEventListener("ended", handleEnded);
     el.addEventListener("pause", handlePause);
     el.addEventListener("play", handlePlay);
     el.addEventListener("timeupdate", handleTimeUpdate);
+    el.addEventListener("progress", handleProgress);
+    el.addEventListener("loadeddata", handleProgress);
+    el.addEventListener("loadedmetadata", handleProgress);
     return () => {
       el.removeEventListener("loadedmetadata", handleLoaded);
       el.removeEventListener("ended", handleEnded);
       el.removeEventListener("pause", handlePause);
       el.removeEventListener("play", handlePlay);
       el.removeEventListener("timeupdate", handleTimeUpdate);
+      el.removeEventListener("progress", handleProgress);
+      el.removeEventListener("loadeddata", handleProgress);
+      el.removeEventListener("loadedmetadata", handleProgress);
       cancelRaf();
     };
   }, [step]);
@@ -150,10 +168,10 @@ export const AudioPlayer = ({
     setCurrentTime(next);
   };
 
-  const progressPercent = useMemo(() => {
+  const bufferedPercent = useMemo(() => {
     if (!duration) return 0;
-    return Math.min(100, Math.max(0, (effectiveCurrent / duration) * 100));
-  }, [effectiveCurrent, duration]);
+    return Math.min(100, Math.max(0, (bufferedTime / duration) * 100));
+  }, [bufferedTime, duration]);
 
   return (
     <div
@@ -205,48 +223,22 @@ export const AudioPlayer = ({
             {formatTime(effectiveCurrent)}
           </span>
           <div className="relative w-56 select-none">
-            {/* Track */}
-            <div
-              className="h-2 w-full rounded-full bg-muted"
-              role="presentation"
-              onClick={(e) => {
-                const rect = (
-                  e.currentTarget as HTMLDivElement
-                ).getBoundingClientRect();
-                const ratio = (e.clientX - rect.left) / rect.width;
-                const next = Math.max(0, Math.min(duration, ratio * duration));
-                handleSeekStart(next);
-                handleSeekCommit(next);
-              }}
-            >
-              <div
-                className="h-2 rounded-full bg-primary"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            {/* Thumb (range input for accessibility) */}
-            <input
-              type="range"
+            <Slider
               min={0}
               max={Math.max(1, duration)}
               step={0.01}
-              value={effectiveCurrent}
-              onChange={(e) => handleSeekChange(Number(e.target.value))}
-              onMouseDown={(e) =>
-                handleSeekStart(Number((e.target as HTMLInputElement).value))
-              }
-              onMouseUp={(e) =>
-                handleSeekCommit(Number((e.target as HTMLInputElement).value))
-              }
-              onTouchStart={(e) =>
-                handleSeekStart(Number((e.target as HTMLInputElement).value))
-              }
-              onTouchEnd={(e) =>
-                handleSeekCommit(Number((e.target as HTMLInputElement).value))
-              }
-              className="absolute inset-0 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary"
+              value={[effectiveCurrent]}
+              onValueChange={(v) => handleSeekChange(v[0] ?? 0)}
+              onValueCommit={(v) => handleSeekCommit(v[0] ?? 0)}
+              onPointerDown={(e) => {
+                const target = e.currentTarget as HTMLElement;
+                const rect = target.getBoundingClientRect();
+                const ratio = (e.clientX - rect.left) / rect.width;
+                const next = Math.max(0, Math.min(duration, ratio * duration));
+                handleSeekStart(next);
+              }}
               aria-label="Seek"
-              disabled={!canPlay}
+              buffered={bufferedPercent}
             />
           </div>
           <span className="text-xs tabular-nums text-muted-foreground">
