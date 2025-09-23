@@ -189,7 +189,7 @@ export const AudioPlayer = ({
         }
       }}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button
           size="sm"
           className="bg-gradient-to-r from-primary to-secondary"
@@ -218,11 +218,11 @@ export const AudioPlayer = ({
           30s »
         </Button>
 
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs tabular-nums text-muted-foreground">
+        <div className="flex w-full items-center gap-2 sm:ml-auto sm:w-auto sm:flex-none min-w-0">
+          <span className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
             {formatTime(effectiveCurrent)}
           </span>
-          <div className="relative w-56 select-none">
+          <div className="relative w-full min-w-0 select-none sm:w-56">
             <Slider
               min={0}
               max={Math.max(1, duration)}
@@ -241,7 +241,7 @@ export const AudioPlayer = ({
               buffered={bufferedPercent}
             />
           </div>
-          <span className="text-xs tabular-nums text-muted-foreground">
+          <span className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
             {formatTime(duration)}
           </span>
           <DropdownMenu>

@@ -40,7 +40,7 @@ export default function SignIn() {
                 await signIn.social(
                   {
                     provider: "google",
-                    callbackURL: "/app/onboarding",
+                    callbackURL: "/onboarding",
                   },
                   {
                     onRequest: () => setLoading(true),

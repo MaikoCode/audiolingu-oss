@@ -86,14 +86,14 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-start gap-4">
-          <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-muted">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="w-28 h-28 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 bg-muted self-center sm:self-auto">
             {cover?.url ? (
               <Image
                 src={cover.url}
                 alt="Episode cover"
-                width={80}
-                height={80}
+                width={112}
+                height={112}
                 className="w-full h-full object-cover"
                 unoptimized
               />
@@ -103,8 +103,8 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
               </div>
             )}
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
+          <div className="flex-1 min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-3">
               <Badge
                 variant="outline"
                 className="bg-green-50 text-green-700 border-green-200"

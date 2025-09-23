@@ -209,7 +209,7 @@ export const getMySettings = query({
         activeProfile?.target_language ?? user.target_language ?? null,
       proficiency_level:
         activeProfile?.proficiency_level ?? user.proficiency_level ?? null,
-      episode_duration: activeProfile?.episode_duration ?? 10,
+      episode_duration: activeProfile?.episode_duration ?? 5,
       preferred_voice: user.preferred_voice ?? null,
     } as const;
   },
@@ -273,7 +273,7 @@ export const updateLearningSettings = mutation({
             typeof user.proficiency_level
           >) ??
           "A1",
-        episode_duration: args.episode_duration ?? 10,
+        episode_duration: args.episode_duration ?? 5,
         createdAt: now(),
         updatedAt: now(),
       });

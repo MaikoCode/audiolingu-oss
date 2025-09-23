@@ -5,7 +5,6 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Toaster } from "@/components/ui/sonner";
 import { AppSidebar } from "@/components/features/layout/AppSidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,7 +17,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex-1" />
         </div>
         <div className="flex-1 overflow-auto">{children}</div>
-        <Toaster />
       </SidebarInset>
     </SidebarProvider>
   );
