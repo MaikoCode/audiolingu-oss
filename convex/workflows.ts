@@ -49,7 +49,7 @@ export const podcastGenerationWorkflow = workflow.define({
     const script: string = await step.runAction(
       internal.agents.generatePodcastScript,
       {
-        userId: (args.userId as unknown as string) ?? "current_user",
+        userId: args.userId ?? "current_user",
       }
     );
     // 2b - Generate a concise episode title
@@ -92,10 +92,16 @@ export const podcastGenerationWorkflow = workflow.define({
     }
 
     // 4- Generate audio via ElevenLabs (already stored in R2) and save key
+    const preferredVoice = await step.runQuery(
+      internal.users.getPreferredVoiceByUserId,
+      { userId: args.userId },
+      { name: "get-preferred-voice" }
+    );
     const audio = await step.runAction(
       internal.elevenlabs.generateAudio,
       {
         script,
+        voiceId: preferredVoice ?? undefined,
       },
       { name: "generate-audio" }
     );

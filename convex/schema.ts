@@ -22,7 +22,7 @@ export default defineSchema({
       )
     ),
     preferred_voice: v.optional(v.string()),
-    createdAt: v.number(), // ms epoch
+    createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_token", ["tokenIdentifier"]) // required for auth lookups
@@ -40,7 +40,7 @@ export default defineSchema({
       v.literal("B2"),
       v.literal("C1")
     ),
-    episode_duration: v.optional(v.number()) ?? 10,
+    episode_duration: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

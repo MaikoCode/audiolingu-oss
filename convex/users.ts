@@ -352,3 +352,27 @@ const ensureUser = async (ctx: MutationCtx) => {
   const created = await ctx.db.get(userId);
   return created!;
 };
+
+export const getPreferredVoice = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    return user?.preferred_voice ?? null;
+  },
+});
+
+export const getPreferredVoiceByUserId = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return null;
+    return user.preferred_voice ?? null;
+  },
+});

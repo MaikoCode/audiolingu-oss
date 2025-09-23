@@ -29,12 +29,14 @@ import { api } from "@/convex/_generated/api";
 import { signOut, useSession } from "@/lib/auth-client";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export const AppSidebar = () => {
   const session = useSession();
   const greeting = useQuery(api.workflows.myGreeting, {});
   const pathname = usePathname();
+  const router = useRouter();
 
   const nav = useMemo(
     () => [
@@ -108,7 +110,10 @@ export const AppSidebar = () => {
               <DropdownMenuLabel>Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => signOut({ fetchOptions: { method: "POST" } })}
+                onClick={() => {
+                  signOut({ fetchOptions: { method: "POST" } });
+                  router.push("/");
+                }}
               >
                 Log out
               </DropdownMenuItem>

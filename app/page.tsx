@@ -33,7 +33,7 @@ export default function HomePage() {
               AudioLingu
             </h1>
           </div>
-          <nav className="hidden md:flex items-center gap-6">
+          {/* <nav className="hidden md:flex items-center gap-6">
             <Link
               href="#"
               className="text-muted-foreground hover:text-primary transition-colors font-medium"
@@ -52,7 +52,7 @@ export default function HomePage() {
             >
               Progress
             </Link>
-          </nav>
+          </nav> */}
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
@@ -111,20 +111,20 @@ export default function HomePage() {
                 Start Learning
               </Link>
             </Button>
-            <Button
+            {/* <Button
               variant="outline"
               size="lg"
               className="text-lg px-8 bg-transparent hover:bg-primary/10 hover:border-primary/50 hover:text-primary"
             >
               <Mic className="w-5 h-5 mr-2" />
               Listen to Sample
-            </Button>
+            </Button> */}
           </div>
         </div>
       </section>
 
       {/* Features Grid */}
-      <section className="py-16 px-4 bg-gradient-to-b from-muted/30 to-transparent">
+      {/* <section className="py-16 px-4 bg-gradient-to-b from-muted/30 to-transparent">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h3 className="text-3xl font-bold text-foreground mb-4">
@@ -180,10 +180,10 @@ export default function HomePage() {
             </Card>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Sample Podcasts */}
-      <section className="py-16 px-4">
+      {/* <section className="py-16 px-4">
         <div className="container mx-auto">
           <div className="text-center mb-12">
             <h3 className="text-3xl font-bold text-foreground mb-4">
@@ -303,10 +303,10 @@ export default function HomePage() {
             </Card>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 relative overflow-hidden">
+      {/* <section className="py-20 px-4 bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-secondary/5 animate-gradient" />
         <div className="container mx-auto text-center max-w-3xl relative">
           <div className="flex justify-center mb-6">
@@ -337,10 +337,10 @@ export default function HomePage() {
             </Link>
           </Button>
         </div>
-      </section>
+      </section> */}
 
       {/* Footer */}
-      <footer className="border-t border-border/50 py-12 px-4 bg-card/30">
+      {/* <footer className="border-t border-border/50 py-12 px-4 bg-card/30">
         <div className="container mx-auto">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
@@ -356,7 +356,7 @@ export default function HomePage() {
             </p>
           </div>
         </div>
-      </footer>
+      </footer> */}
     </div>
   );
 }

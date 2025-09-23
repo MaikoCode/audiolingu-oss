@@ -1,15 +1,11 @@
 "use client";
 
-import { LANGUAGES } from "@/components/features/onboarding/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
@@ -18,7 +14,7 @@ export type VoiceFiltersValue = {
   language: string;
   gender?: "male" | "female" | "neutral";
   age?: "young" | "middle_aged" | "old";
-  category?: "professional" | "famous" | "high_quality";
+  category?: "professional" | "high_quality";
 };
 
 export const VoiceFilters = ({
@@ -37,28 +33,6 @@ export const VoiceFilters = ({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" aria-label="Filter language">
-            Language: {value.language.toUpperCase()}
-            <ChevronDown className="ml-2 h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuLabel>Select language</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={value.language}
-            onValueChange={(v) => handleSet("language", v)}
-          >
-            {LANGUAGES.map((l) => (
-              <DropdownMenuRadioItem key={l.code} value={l.code}>
-                {l.name}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" aria-label="Filter gender">
@@ -108,7 +82,7 @@ export const VoiceFilters = ({
           <DropdownMenuItem onClick={() => handleSet("category", undefined)}>
             Any
           </DropdownMenuItem>
-          {(["professional", "famous", "high_quality"] as const).map((c) => (
+          {(["professional", "high_quality"] as const).map((c) => (
             <DropdownMenuItem key={c} onClick={() => handleSet("category", c)}>
               {c}
             </DropdownMenuItem>

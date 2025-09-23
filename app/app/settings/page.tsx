@@ -26,7 +26,7 @@ const SettingsPage = () => {
   const [localLanguage, setLocalLanguage] = useState<string>("");
   type Level = "A1" | "A2" | "B1" | "B2" | "C1";
   const [localLevel, setLocalLevel] = useState<Level | "">("");
-  const [localDuration, setLocalDuration] = useState<number>(10);
+  const [localDuration, setLocalDuration] = useState<number | null>(null);
   const [localVoice, setLocalVoice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -34,6 +34,13 @@ const SettingsPage = () => {
     if (!settings?.target_language) return LANGUAGES[0]?.code ?? "en";
     return settings.target_language;
   }, [settings?.target_language]);
+
+  const currentDuration = useMemo(() => {
+    if (typeof localDuration === "number") return localDuration;
+    if (typeof settings?.episode_duration === "number")
+      return settings.episode_duration;
+    return 5;
+  }, [localDuration, settings?.episode_duration]);
 
   const handleSave = async () => {
     try {
@@ -43,7 +50,7 @@ const SettingsPage = () => {
       const nextLevel: Level = (localLevel ||
         settings?.proficiency_level ||
         "A1") as Level;
-      const nextDuration = localDuration || settings?.episode_duration || 10;
+      const nextDuration = currentDuration;
       await updateSettings({
         target_language: nextLang,
         proficiency_level: nextLevel,
@@ -54,6 +61,7 @@ const SettingsPage = () => {
       }
       toast.success("Preferences saved");
     } catch (err) {
+      console.error(err);
       toast.error("Failed to save settings");
     } finally {
       setSaving(false);
@@ -99,13 +107,14 @@ const SettingsPage = () => {
             <label className="text-sm font-medium">
               Episode duration (minutes)
             </label>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-4">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setLocalDuration(5)}
                 aria-label="Set duration 5 minutes"
-                className={localDuration === 5 ? "bg-primary/10" : ""}
+                aria-pressed={currentDuration === 5}
+                className={currentDuration === 5 ? "bg-primary/10" : ""}
               >
                 5
               </Button>
@@ -114,7 +123,8 @@ const SettingsPage = () => {
                 size="sm"
                 onClick={() => setLocalDuration(10)}
                 aria-label="Set duration 10 minutes"
-                className={localDuration === 10 ? "bg-primary/10" : ""}
+                aria-pressed={currentDuration === 10}
+                className={currentDuration === 10 ? "bg-primary/10" : ""}
               >
                 10
               </Button>
@@ -123,7 +133,8 @@ const SettingsPage = () => {
                 size="sm"
                 onClick={() => setLocalDuration(15)}
                 aria-label="Set duration 15 minutes"
-                className={localDuration === 15 ? "bg-primary/10" : ""}
+                aria-pressed={currentDuration === 15}
+                className={currentDuration === 15 ? "bg-primary/10" : ""}
               >
                 15
               </Button>
@@ -150,7 +161,7 @@ const SettingsPage = () => {
         <CardHeader>
           <CardTitle>Choose narration voice</CardTitle>
           <CardDescription>
-            Browse ElevenLabs catalog and pick your preferred voice
+            Browse voices catalog and pick your preferred voice
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

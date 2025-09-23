@@ -6,8 +6,9 @@ import { LevelSelect } from "./LevelSelect";
 import { InterestsSelect } from "./InterestsSelect";
 import { OnboardingNavigation } from "./OnboardingNavigation";
 import { useOnboardingFlow } from "./useOnboardingFlow";
-import { Globe, BookOpen, Headphones } from "lucide-react";
+import { Globe, BookOpen, Headphones, Music } from "lucide-react";
 import type { ProficiencyLevel } from "./constants";
+import { VoiceCatalog } from "@/components/features/voices/VoiceCatalog";
 
 export const OnboardingScreen = () => {
   const {
@@ -16,18 +17,21 @@ export const OnboardingScreen = () => {
     selectedLanguage,
     selectedLevel,
     selectedInterests,
+    selectedVoiceId,
+    prefetchedVoices,
     submitting,
     sessionPending,
     session,
     setSelectedLanguage,
     setSelectedLevel,
     toggleInterest,
+    setSelectedVoiceId,
     handleNext,
     handleBack,
     canProceed,
   } = useOnboardingFlow();
 
-  const totalSteps = 3;
+  const totalSteps = 4;
   const handleLevelSelect = (level: ProficiencyLevel) =>
     setSelectedLevel(level);
 
@@ -69,6 +73,29 @@ export const OnboardingScreen = () => {
               selectedInterests={selectedInterests}
               toggleInterest={toggleInterest}
             />
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Music className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold">
+                Choose your preferred voice
+              </h2>
+              <p className="text-muted-foreground">
+                Preview and select the voice you want for your personalized
+                episodes.
+              </p>
+              <VoiceCatalog
+                initialFilters={{ language: selectedLanguage || "en" }}
+                selectedVoiceId={selectedVoiceId ?? undefined}
+                onSelect={setSelectedVoiceId}
+                initialVoices={prefetchedVoices ?? undefined}
+              />
+            </div>
           </div>
         )}
 

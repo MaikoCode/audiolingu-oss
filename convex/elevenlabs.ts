@@ -73,7 +73,7 @@ type VoiceSearchResult = {
     name: string;
     gender?: "male" | "female" | "neutral";
     age?: "young" | "middle_aged" | "old";
-    category?: "professional" | "famous" | "high_quality";
+    category?: "professional" | "high_quality";
     language?: string;
     previewUrl?: string;
     imageUrl?: string;
@@ -91,11 +91,7 @@ export const searchVoices = action({
       v.union(v.literal("young"), v.literal("middle_aged"), v.literal("old"))
     ),
     category: v.optional(
-      v.union(
-        v.literal("professional"),
-        v.literal("famous"),
-        v.literal("high_quality")
-      )
+      v.union(v.literal("professional"), v.literal("high_quality"))
     ),
   },
   handler: async (ctx, args): Promise<VoiceSearchResult> => {

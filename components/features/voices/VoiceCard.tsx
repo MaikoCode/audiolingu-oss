@@ -11,7 +11,7 @@ export type VoiceItem = {
   name: string;
   gender?: "male" | "female" | "neutral";
   age?: "young" | "middle_aged" | "old";
-  category?: "professional" | "famous" | "high_quality";
+  category?: "professional" | "high_quality";
   language?: string;
   previewUrl?: string;
   imageUrl?: string;
