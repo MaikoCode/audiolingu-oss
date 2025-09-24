@@ -221,7 +221,6 @@ export const AudioPlayer = ({
     layout === "inline"
       ? "flex w-full flex-row items-center gap-2 flex-nowrap"
       : "flex flex-col gap-3 sm:flex-row sm:items-center";
-
   return (
     <div
       className={containerClasses}
