@@ -3,6 +3,7 @@
 import Image from "next/image";
 import React from "react";
 import AudioPlayer from "./AudioPlayer";
+import { useNowPlaying } from "./NowPlayingContext";
 import {
   Card,
   CardContent,
@@ -33,6 +34,9 @@ type Episode = {
   cover_image_id?: string;
   summary?: string;
   transcript?: string;
+  aligned_transcript?: string;
+  sentence_alignments?: { text: string; start: number; end: number }[];
+  word_alignments?: { word: string; start: number; end: number }[];
   audioStorageId?: string;
   durationSeconds?: number;
   status: "draft" | "queued" | "generating" | "ready" | "failed";
@@ -51,6 +55,8 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
     episode.audioStorageId ? { key: episode.audioStorageId } : "skip"
   );
   const setFeedback = useMutation(api.episodes.setFeedback);
+  const { setCurrent, openTranscript } = useNowPlaying();
+  // bottom bar handles playback; we only provide entry points here
 
   const handleSetFeedback = async (value: "good" | "bad" | undefined) => {
     try {
@@ -129,10 +135,51 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
               </div>
             ) : (
               <div className="flex w-full flex-col gap-2">
-                <AudioPlayer
-                  src={audio?.url}
-                  title={episode.title ?? "Episode"}
-                />
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-primary to-secondary"
+                    disabled={!audio?.url}
+                    aria-label="Play"
+                    onClick={() => {
+                      setCurrent({
+                        id: String(episode._id),
+                        title: episode.title ?? "Episode",
+                        coverUrl: cover?.url,
+                        audioUrl: audio?.url ?? "",
+                        sentences: episode.sentence_alignments,
+                        words: episode.word_alignments ?? [],
+                      });
+                      // trigger autoplay by dispatching a custom event the bar listens for
+                      window.dispatchEvent(
+                        new CustomEvent("nowplaying:autoplay")
+                      );
+                    }}
+                  >
+                    ▶️ Play
+                  </Button>
+                  {episode.sentence_alignments?.length ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!audio?.url}
+                      aria-label="Open transcript"
+                      onClick={() => {
+                        setCurrent({
+                          id: String(episode._id),
+                          title: episode.title ?? "Episode",
+                          coverUrl: cover?.url,
+                          audioUrl: audio?.url ?? "",
+                          sentences: episode.sentence_alignments,
+                          words: episode.word_alignments ?? [],
+                        });
+                        openTranscript();
+                      }}
+                    >
+                      Transcript
+                    </Button>
+                  ) : null}
+                </div>
                 <TooltipProvider>
                   <div className="flex items-center gap-2">
                     <Tooltip>

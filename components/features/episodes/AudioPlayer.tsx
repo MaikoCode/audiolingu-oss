@@ -11,11 +11,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
+type AudioPlayerLayout = "card" | "inline";
+
 type AudioPlayerProps = {
   src?: string;
   autoPlay?: boolean;
   className?: string;
   title?: string;
+  layout?: AudioPlayerLayout;
+  // New integration hooks for synced transcript
+  onTimeChange?: (time: number) => void;
+  onDurationChange?: (duration: number) => void;
+  onPlayStateChange?: (isPlaying: boolean) => void;
+  // External control: when this value changes, player seeks to the time (in seconds)
+  seekTo?: number;
 };
 
 const formatTime = (seconds: number) => {
@@ -32,6 +41,11 @@ export const AudioPlayer = ({
   autoPlay,
   className,
   title,
+  layout = "card",
+  onTimeChange,
+  onDurationChange,
+  onPlayStateChange,
+  seekTo,
 }: AudioPlayerProps) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -57,27 +71,38 @@ export const AudioPlayer = ({
     const el = audioRef.current;
     if (!el) return;
     setCurrentTime(el.currentTime);
+    if (onTimeChange) onTimeChange(el.currentTime);
     rafRef.current = requestAnimationFrame(step);
-  }, []);
+  }, [onTimeChange]);
 
   useEffect(() => {
     const el = audioRef.current;
     if (!el) return;
-    const handleLoaded = () => setDuration(el.duration || 0);
+    const handleLoaded = () => {
+      const d = el.duration || 0;
+      setDuration(d);
+      if (onDurationChange) onDurationChange(d);
+    };
     const handleEnded = () => {
       setIsPlaying(false);
+      if (onPlayStateChange) onPlayStateChange(false);
       cancelRaf();
     };
     const handlePause = () => {
       setIsPlaying(false);
+      if (onPlayStateChange) onPlayStateChange(false);
       cancelRaf();
     };
     const handlePlay = () => {
       setIsPlaying(true);
+      if (onPlayStateChange) onPlayStateChange(true);
       cancelRaf();
       rafRef.current = requestAnimationFrame(step);
     };
-    const handleTimeUpdate = () => setCurrentTime(el.currentTime);
+    const handleTimeUpdate = () => {
+      setCurrentTime(el.currentTime);
+      if (onTimeChange) onTimeChange(el.currentTime);
+    };
     const handleProgress = () => {
       try {
         if (!el.buffered || el.buffered.length === 0) return setBufferedTime(0);
@@ -108,7 +133,7 @@ export const AudioPlayer = ({
       el.removeEventListener("loadedmetadata", handleProgress);
       cancelRaf();
     };
-  }, [step]);
+  }, [step, onDurationChange, onPlayStateChange, onTimeChange]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -122,6 +147,17 @@ export const AudioPlayer = ({
     if (!el || !src) return;
     el.play().catch(() => {});
   }, [autoPlay, src]);
+
+  // Handle external seek requests
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (typeof seekTo !== "number" || Number.isNaN(seekTo)) return;
+    const next = Math.max(0, Math.min(duration || 0, seekTo));
+    el.currentTime = next;
+    setCurrentTime(next);
+    if (onTimeChange) onTimeChange(next);
+  }, [seekTo, duration, onTimeChange]);
 
   const handleTogglePlay = () => {
     const el = audioRef.current;
@@ -173,12 +209,22 @@ export const AudioPlayer = ({
     return Math.min(100, Math.max(0, (bufferedTime / duration) * 100));
   }, [bufferedTime, duration]);
 
+  const containerClasses =
+    layout === "inline"
+      ? cn("w-full", className)
+      : cn(
+          "w-full rounded-xl border bg-card text-card-foreground p-3",
+          className
+        );
+
+  const controlsWrapperClasses =
+    layout === "inline"
+      ? "flex w-full flex-row items-center gap-2 flex-nowrap"
+      : "flex flex-col gap-3 sm:flex-row sm:items-center";
+
   return (
     <div
-      className={cn(
-        "w-full rounded-xl border bg-card text-card-foreground p-3",
-        className
-      )}
+      className={containerClasses}
       role="region"
       aria-label={title ? `Player for ${title}` : "Audio player"}
       tabIndex={0}
@@ -189,7 +235,7 @@ export const AudioPlayer = ({
         }
       }}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className={controlsWrapperClasses}>
         <Button
           size="sm"
           className="bg-gradient-to-r from-primary to-secondary"
@@ -205,6 +251,7 @@ export const AudioPlayer = ({
           onClick={() => handleSkip(-15)}
           aria-label="Rewind 15 seconds"
           disabled={!canPlay}
+          className="hidden sm:inline-flex"
         >
           « 15s
         </Button>
@@ -214,6 +261,7 @@ export const AudioPlayer = ({
           onClick={() => handleSkip(30)}
           aria-label="Forward 30 seconds"
           disabled={!canPlay}
+          className="hidden sm:inline-flex"
         >
           30s »
         </Button>
@@ -222,7 +270,7 @@ export const AudioPlayer = ({
           <span className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
             {formatTime(effectiveCurrent)}
           </span>
-          <div className="relative w-full min-w-0 select-none sm:w-56">
+          <div className="relative w-auto flex-1 min-w-0 select-none sm:w-56">
             <Slider
               min={0}
               max={Math.max(1, duration)}
@@ -241,12 +289,17 @@ export const AudioPlayer = ({
               buffered={bufferedPercent}
             />
           </div>
-          <span className="text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+          <span className="hidden sm:inline text-xs tabular-nums text-muted-foreground whitespace-nowrap">
             {formatTime(duration)}
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" aria-label="Playback speed">
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label="Playback speed"
+                className="hidden sm:inline-flex"
+              >
                 {rate.toFixed(2).replace(/\.00$/, "")}x
               </Button>
             </DropdownMenuTrigger>
