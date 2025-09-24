@@ -98,10 +98,11 @@ export const podcastGenerationWorkflow = workflow.define({
       { name: "get-preferred-voice" }
     );
     const audio = await step.runAction(
-      internal.elevenlabs.generateAudio,
+      internal.elevenlabs.generateAudioWithWordAlignments,
       {
         script,
         voiceId: preferredVoice ?? undefined,
+        episodeId,
       },
       { name: "generate-audio" }
     );
@@ -112,6 +113,19 @@ export const podcastGenerationWorkflow = workflow.define({
         audioKey: audio.key,
       },
       { name: "set-episode-audio" }
+    );
+
+    // 4b - Compute word-level alignments from normalized character timings
+    await step.runMutation(
+      internal.episodes.computeAndSaveWordAlignments,
+      { episodeId },
+      { name: "compute-word-alignments" }
+    );
+
+    await step.runMutation(
+      internal.episodes.computeAndSaveSentenceAlignments,
+      { episodeId },
+      { name: "compute-sentence-alignments" }
     );
 
     // 5- Mark as ready

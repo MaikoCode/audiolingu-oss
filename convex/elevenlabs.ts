@@ -45,6 +45,135 @@ export const generateAudio = internalAction({
   },
 });
 
+export const generateAudioWithWordAlignments = internalAction({
+  args: {
+    script: v.string(),
+    voiceId: v.optional(v.string()),
+    episodeId: v.optional(v.id("episodes")),
+  },
+  handler: async (ctx, args) => {
+    const r2 = new R2(components.r2);
+    const voiceId = args.voiceId || "KoVIHoyLDrQyd4pGalbs";
+    const response = (await elevenlabs.textToSpeech.convertWithTimestamps(
+      voiceId,
+      {
+        text: args.script,
+        modelId: "eleven_multilingual_v2",
+      }
+    )) as unknown;
+
+    // Read possibly streamed JSON or direct object
+    let audioBytes: Uint8Array | null = null;
+    let normalizedAlignment: unknown = undefined;
+
+    const maybeReadable = response as { getReader?: () => unknown };
+    if (maybeReadable && typeof maybeReadable.getReader === "function") {
+      // Response is a ReadableStream<Uint8Array> of JSON - read and parse
+      const reader = (response as ReadableStream<Uint8Array>).getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          total += value.length;
+        }
+      }
+      const merged = new Uint8Array(total);
+      let offset = 0;
+      for (const c of chunks) {
+        merged.set(c, offset);
+        offset += c.length;
+      }
+      try {
+        const jsonText = new TextDecoder().decode(merged);
+        const parsed = JSON.parse(jsonText) as Record<string, unknown>;
+        const audioCandidate =
+          typeof parsed["audio_base64"] === "string"
+            ? (parsed["audio_base64"] as string)
+            : typeof parsed["audioBase64"] === "string"
+              ? (parsed["audioBase64"] as string)
+              : typeof parsed["audio"] === "string"
+                ? (parsed["audio"] as string)
+                : undefined;
+        if (audioCandidate) {
+          const cleaned = audioCandidate.replace(/^data:[^,]+,/, "");
+          const buf = Buffer.from(cleaned, "base64");
+          audioBytes = new Uint8Array(
+            buf.buffer,
+            buf.byteOffset,
+            buf.byteLength
+          );
+        }
+        normalizedAlignment =
+          parsed["normalized_alignment"] ??
+          parsed["normalizedAlignment"] ??
+          parsed["alignment"];
+      } catch (_e) {
+        // leave audioBytes null to trigger fallback
+      }
+    } else if (typeof response === "object" && response !== null) {
+      // Response is a plain object
+      const resObj = response as Record<string, unknown>;
+      const audioCandidate =
+        typeof resObj["audio_base64"] === "string"
+          ? (resObj["audio_base64"] as string)
+          : typeof resObj["audioBase64"] === "string"
+            ? (resObj["audioBase64"] as string)
+            : typeof resObj["audio"] === "string"
+              ? (resObj["audio"] as string)
+              : undefined;
+      if (audioCandidate) {
+        const cleaned = audioCandidate.replace(/^data:[^,]+,/, "");
+        const buf = Buffer.from(cleaned, "base64");
+        audioBytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+      }
+      normalizedAlignment =
+        resObj["normalized_alignment"] ??
+        resObj["normalizedAlignment"] ??
+        resObj["alignment"];
+    }
+
+    // If timestamps call didn't return audio, fall back to plain audio generation
+    if (!audioBytes || audioBytes.byteLength === 0) {
+      const audioStream = await elevenlabs.textToSpeech.convert(voiceId, {
+        text: args.script,
+        modelId: "eleven_multilingual_v2",
+        outputFormat: "mp3_44100_128",
+      });
+      const reader = audioStream.getReader();
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value);
+          total += value.length;
+        }
+      }
+      const merged = new Uint8Array(total);
+      let offset = 0;
+      for (const c of chunks) {
+        merged.set(c, offset);
+        offset += c.length;
+      }
+      audioBytes = merged;
+    }
+
+    if (normalizedAlignment && args.episodeId) {
+      await ctx.runMutation(internal.episodes.setAlignedTranscript, {
+        episodeId: args.episodeId,
+        alignedTranscript: JSON.stringify(normalizedAlignment),
+      });
+    }
+
+    const key = await r2.store(ctx, audioBytes, { type: "audio/mpeg" });
+    return { key, contentType: "audio/mpeg" } as const;
+  },
+});
+
 export const getVoices = internalAction({
   args: {
     language: v.string(),

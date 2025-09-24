@@ -9,6 +9,80 @@ import { v } from "convex/values";
 
 const now = () => Date.now();
 
+type NormalizedAlignment = {
+  characters: string[];
+  character_start_times_seconds: number[];
+  character_end_times_seconds: number[];
+};
+
+const getArrayFromKeys = (
+  obj: Record<string, unknown>,
+  keys: string[]
+): unknown[] => {
+  for (const key of keys) {
+    const value = obj[key];
+    if (Array.isArray(value)) return value;
+  }
+  return [];
+};
+
+const isWordCharacter = (char: string): boolean => {
+  if (!char) return false;
+  // Basic alphanumerics first
+  if (/^[A-Za-z0-9]$/.test(char)) return true;
+  // Common accented letters and non-latin ranges fallback
+  // This keeps runtime regex simple and avoids unsupported Unicode classes in some envs
+  return /[À-ÖØ-öø-ÿĀ-žȘșȚțА-Яа-яΑ-Ωα-ω一-龯々〆〤가-힣]/.test(char);
+};
+
+const buildWordAlignments = (
+  aligned: NormalizedAlignment
+): { word: string; start: number; end: number }[] => {
+  const chars = Array.isArray(aligned.characters) ? aligned.characters : [];
+  const starts = Array.isArray(aligned.character_start_times_seconds)
+    ? aligned.character_start_times_seconds
+    : [];
+  const ends = Array.isArray(aligned.character_end_times_seconds)
+    ? aligned.character_end_times_seconds
+    : [];
+
+  const len = Math.min(chars.length, starts.length, ends.length);
+  if (len === 0) return [];
+
+  const results: { word: string; start: number; end: number }[] = [];
+  let currentWord = "";
+  let wordStart = 0;
+  let wordEnd = 0;
+
+  for (let i = 0; i < len; i++) {
+    const rawChar = chars[i];
+    const ch = typeof rawChar === "string" ? rawChar : String(rawChar ?? "");
+    const isDelimiter = !isWordCharacter(ch) || /\s/.test(ch);
+    const startTime = Number(starts[i]);
+    const endTime = Number(ends[i]);
+    const validTimes = Number.isFinite(startTime) && Number.isFinite(endTime);
+
+    if (!isDelimiter && validTimes) {
+      if (currentWord.length === 0) {
+        wordStart = startTime;
+      }
+      currentWord += ch;
+      wordEnd = endTime;
+    } else {
+      if (currentWord.length > 0) {
+        results.push({ word: currentWord, start: wordStart, end: wordEnd });
+        currentWord = "";
+      }
+    }
+  }
+
+  if (currentWord.length > 0) {
+    results.push({ word: currentWord, start: wordStart, end: wordEnd });
+  }
+
+  return results;
+};
+
 export const createDraft = internalMutation({
   args: {
     userId: v.id("users"),
@@ -91,6 +165,157 @@ export const setAudio = internalMutation({
     await ctx.db.patch(args.episodeId, {
       audioStorageId: args.audioKey,
       durationSeconds: args.durationSeconds,
+      updatedAt: now(),
+    });
+  },
+});
+
+export const setAlignedTranscript = internalMutation({
+  args: {
+    episodeId: v.id("episodes"),
+    alignedTranscript: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.episodeId, {
+      aligned_transcript: args.alignedTranscript,
+      updatedAt: now(),
+    });
+  },
+});
+
+export const computeAndSaveWordAlignments = internalMutation({
+  args: {
+    episodeId: v.id("episodes"),
+  },
+  handler: async (ctx, args) => {
+    const episode = await ctx.db.get(args.episodeId);
+    if (!episode) return;
+
+    const raw = episode.aligned_transcript;
+    if (typeof raw !== "string" || raw.length === 0) return;
+
+    let parsed: NormalizedAlignment | null = null;
+    try {
+      const obj = JSON.parse(raw) as unknown;
+      if (obj && typeof obj === "object") {
+        const o = obj as Record<string, unknown>;
+        const startArrayUnknown = getArrayFromKeys(o, [
+          "character_start_times_seconds",
+          "characterStartTimesSeconds",
+        ]);
+        const endArrayUnknown = getArrayFromKeys(o, [
+          "character_end_times_seconds",
+          "characterEndTimesSeconds",
+        ]);
+        parsed = {
+          characters: Array.isArray(o.characters)
+            ? (o.characters as unknown[]).map((c) => String(c))
+            : [],
+          character_start_times_seconds: startArrayUnknown.map((n) =>
+            typeof n === "number" ? n : Number(n)
+          ),
+          character_end_times_seconds: endArrayUnknown.map((n) =>
+            typeof n === "number" ? n : Number(n)
+          ),
+        };
+      }
+    } catch {
+      parsed = null;
+    }
+
+    if (!parsed) return;
+    const words = buildWordAlignments(parsed);
+    console.log("word alignments: ", words);
+    await ctx.db.patch(args.episodeId, {
+      word_alignments: words.map((w) => ({
+        word: w.word,
+        start: w.start,
+        end: w.end,
+      })),
+      updatedAt: now(),
+    });
+  },
+});
+
+const SENTENCE_BREAK_REGEX = /[\.\!\?…]+/; // ellipsis and common sentence enders
+
+const buildSentenceAlignments = (
+  aligned: NormalizedAlignment
+): { text: string; start: number; end: number }[] => {
+  const chars = Array.isArray(aligned.characters) ? aligned.characters : [];
+  const starts = Array.isArray(aligned.character_start_times_seconds)
+    ? aligned.character_start_times_seconds
+    : [];
+  const ends = Array.isArray(aligned.character_end_times_seconds)
+    ? aligned.character_end_times_seconds
+    : [];
+  const len = Math.min(chars.length, starts.length, ends.length);
+  if (len === 0) return [];
+
+  const sentences: { text: string; start: number; end: number }[] = [];
+  let buffer = "";
+  let sentStart = Number.isFinite(starts[0]) ? Number(starts[0]) : 0;
+  let lastValidEnd = sentStart;
+
+  for (let i = 0; i < len; i++) {
+    const ch = typeof chars[i] === "string" ? chars[i] : String(chars[i] ?? "");
+    const start = Number(starts[i]);
+    const end = Number(ends[i]);
+    if (Number.isFinite(end)) lastValidEnd = end;
+    buffer += ch;
+    if (SENTENCE_BREAK_REGEX.test(ch)) {
+      const text = buffer.trim();
+      if (text) sentences.push({ text, start: sentStart, end: lastValidEnd });
+      buffer = "";
+      // Next sentence start is next char's start if valid, else carry lastValidEnd
+      const nextStart = Number(starts[i + 1]);
+      sentStart = Number.isFinite(nextStart) ? nextStart : lastValidEnd;
+    }
+  }
+
+  const tail = buffer.trim();
+  if (tail) sentences.push({ text: tail, start: sentStart, end: lastValidEnd });
+  return sentences;
+};
+
+export const computeAndSaveSentenceAlignments = internalMutation({
+  args: { episodeId: v.id("episodes") },
+  handler: async (ctx, args) => {
+    const episode = await ctx.db.get(args.episodeId);
+    if (!episode) return;
+    const raw = episode.aligned_transcript;
+    if (typeof raw !== "string" || raw.length === 0) return;
+
+    let parsed: NormalizedAlignment | null = null;
+    try {
+      const obj = JSON.parse(raw) as Record<string, unknown>;
+      const startArrayUnknown = getArrayFromKeys(obj, [
+        "character_start_times_seconds",
+        "characterStartTimesSeconds",
+      ]);
+      const endArrayUnknown = getArrayFromKeys(obj, [
+        "character_end_times_seconds",
+        "characterEndTimesSeconds",
+      ]);
+      parsed = {
+        characters: Array.isArray(obj.characters)
+          ? (obj.characters as unknown[]).map((c) => String(c))
+          : [],
+        character_start_times_seconds: startArrayUnknown.map((n) =>
+          typeof n === "number" ? n : Number(n)
+        ),
+        character_end_times_seconds: endArrayUnknown.map((n) =>
+          typeof n === "number" ? n : Number(n)
+        ),
+      };
+    } catch {
+      parsed = null;
+    }
+    if (!parsed) return;
+
+    const sentences = buildSentenceAlignments(parsed);
+    await ctx.db.patch(args.episodeId, {
+      sentence_alignments: sentences,
       updatedAt: now(),
     });
   },

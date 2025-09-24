@@ -88,6 +88,25 @@ export default defineSchema({
     summary: v.optional(v.string()),
     topics: v.optional(v.array(v.id("topics"))),
     transcript: v.optional(v.string()),
+    aligned_transcript: v.optional(v.string()),
+    word_alignments: v.optional(
+      v.array(
+        v.object({
+          word: v.string(),
+          start: v.number(),
+          end: v.number(),
+        })
+      )
+    ),
+    sentence_alignments: v.optional(
+      v.array(
+        v.object({
+          text: v.string(),
+          start: v.number(),
+          end: v.number(),
+        })
+      )
+    ),
     audioStorageId: v.optional(v.string()),
     durationSeconds: v.optional(v.number()),
     status: v.union(
@@ -107,17 +126,4 @@ export default defineSchema({
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_user_status", ["userId", "status"])
     .index("by_status", ["status"]),
-
-  // Track listening progress per user per episode
-  episode_progress: defineTable({
-    userId: v.id("users"),
-    episodeId: v.id("episodes"),
-    positionSeconds: v.number(), // last known position
-    completed: v.boolean(),
-    completedAt: v.optional(v.number()),
-    updatedAt: v.number(),
-    createdAt: v.number(),
-  })
-    .index("by_user_episode", ["userId", "episodeId"])
-    .index("by_episode", ["episodeId"]),
 });
