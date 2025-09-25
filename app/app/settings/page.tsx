@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { LanguageSelect } from "@/components/features/onboarding/LanguageSelect";
@@ -22,6 +24,8 @@ const SettingsPage = () => {
   const settings = useQuery(api.users.getMySettings, {});
   const updateSettings = useMutation(api.users.updateLearningSettings);
   const setVoice = useMutation(api.users.setPreferredVoice);
+  const setDaily = useMutation(api.users.setDailyPodcastEnabled);
+  const setEmail = useMutation(api.users.setEmailNotificationsEnabled);
 
   const [localLanguage, setLocalLanguage] = useState<string>("");
   type Level = "A1" | "A2" | "B1" | "B2" | "C1";
@@ -29,6 +33,8 @@ const SettingsPage = () => {
   const [localDuration, setLocalDuration] = useState<number | null>(null);
   const [localVoice, setLocalVoice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [dailySaving, setDailySaving] = useState(false);
+  const [emailSaving, setEmailSaving] = useState(false);
 
   const initialLanguage = useMemo(() => {
     if (!settings?.target_language) return LANGUAGES[0]?.code ?? "en";
@@ -68,6 +74,55 @@ const SettingsPage = () => {
     }
   };
 
+  const getNextUtcSchedule = (hourUTC: number, minuteUTC: number) => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(hourUTC, minuteUTC, 0, 0);
+    if (next.getTime() <= now.getTime()) {
+      next.setUTCDate(next.getUTCDate() + 1);
+    }
+    return next;
+  };
+
+  const nextDailyUtc = useMemo(() => getNextUtcSchedule(12, 0), []);
+
+  const handleToggleDaily = async (enabled: boolean) => {
+    try {
+      setDailySaving(true);
+      await setDaily({ enabled });
+      if (!enabled && settings?.send_email) {
+        // Keep value server-side as-is; UI email switch is disabled when daily is off
+      }
+      toast.success(
+        enabled ? "Daily generation enabled" : "Daily generation disabled"
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update daily generation");
+    } finally {
+      setDailySaving(false);
+    }
+  };
+
+  const handleToggleEmail = async (enabled: boolean) => {
+    try {
+      if (settings?.daily_podcast_enabled !== true) {
+        toast.error("Enable daily generation first");
+        return;
+      }
+      setEmailSaving(true);
+      await setEmail({ enabled });
+      toast.success(
+        enabled ? "Email notifications enabled" : "Email notifications disabled"
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update email notifications");
+    } finally {
+      setEmailSaving(false);
+    }
+  };
+
   return (
     <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
       <div>
@@ -76,6 +131,82 @@ const SettingsPage = () => {
           Manage your learning preferences and voice
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Daily episodes</CardTitle>
+          <CardDescription>
+            Enable daily generation and email notifications
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-sm font-medium">Daily generation</span>
+              <p className="text-xs text-muted-foreground">
+                Generate a new personalized episode every day.
+              </p>
+            </div>
+            <Switch
+              aria-label="Toggle daily generation"
+              checked={settings?.daily_podcast_enabled === true}
+              onCheckedChange={(v) => handleToggleDaily(Boolean(v))}
+              disabled={dailySaving || !settings}
+              data-state={
+                settings?.daily_podcast_enabled === true
+                  ? "checked"
+                  : "unchecked"
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-sm font-medium">Email notification</span>
+              <p className="text-xs text-muted-foreground">
+                Receive an email when your daily episode is ready.
+              </p>
+            </div>
+            <Switch
+              aria-label="Toggle email notifications"
+              checked={
+                settings?.send_email !== false &&
+                settings?.daily_podcast_enabled === true
+              }
+              onCheckedChange={(v) => handleToggleEmail(Boolean(v))}
+              disabled={
+                emailSaving ||
+                settings?.daily_podcast_enabled !== true ||
+                !settings
+              }
+              data-state={
+                settings?.send_email !== false &&
+                settings?.daily_podcast_enabled === true
+                  ? "checked"
+                  : "unchecked"
+              }
+            />
+          </div>
+
+          {settings?.daily_podcast_enabled === true && (
+            <div className="space-y-2" aria-live="polite">
+              <label className="text-sm font-medium" htmlFor="daily-time">
+                Next generation time
+              </label>
+              <Input
+                id="daily-time"
+                readOnly
+                value={`${nextDailyUtc.toLocaleString()} (local) — ${nextDailyUtc.toUTCString()} (UTC)`}
+                aria-readonly="true"
+                className="cursor-default"
+              />
+              <p className="text-xs text-muted-foreground">
+                Schedule: 12:00 UTC daily
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

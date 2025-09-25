@@ -182,6 +182,19 @@ export const learningProfile = internalQuery({
   },
 });
 
+export const getEmailInfoById = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return null;
+    return {
+      email: user.email,
+      first_name: user.first_name,
+      send_email: user.send_email !== false,
+    } as const;
+  },
+});
+
 export const getMySettings = query({
   args: {},
   handler: async (ctx) => {
@@ -211,6 +224,8 @@ export const getMySettings = query({
         activeProfile?.proficiency_level ?? user.proficiency_level ?? null,
       episode_duration: activeProfile?.episode_duration ?? 5,
       preferred_voice: user.preferred_voice ?? null,
+      daily_podcast_enabled: user.daily_podcast_enabled === true,
+      send_email: user.send_email !== false,
     } as const;
   },
 });
@@ -318,6 +333,57 @@ export const setPreferredVoice = mutation({
   },
 });
 
+export const setDailyPodcastEnabled = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user) throw new Error("User not found");
+
+    await ctx.db.patch(user._id, {
+      daily_podcast_enabled: args.enabled,
+      updatedAt: now(),
+    });
+    return { ok: true } as const;
+  },
+});
+
+export const setEmailNotificationsEnabled = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+    if (!user) throw new Error("User not found");
+
+    // If enabling email but daily is not enabled, block to maintain dependency
+    if (args.enabled === true && user.daily_podcast_enabled !== true) {
+      throw new Error(
+        "Enable daily generation before turning on email notifications"
+      );
+    }
+
+    await ctx.db.patch(user._id, {
+      send_email: args.enabled,
+      updatedAt: now(),
+    });
+    return { ok: true } as const;
+  },
+});
+
 // Shared helper to ensure a user document exists for the current identity
 const ensureUser = async (ctx: MutationCtx) => {
   const identity = await ctx.auth.getUserIdentity();
@@ -345,6 +411,8 @@ const ensureUser = async (ctx: MutationCtx) => {
     image_url: imageUrl,
     tokenIdentifier: identity.tokenIdentifier,
     onboarding_completed: false,
+    send_email: false,
+    daily_podcast_enabled: false,
     createdAt: now(),
     updatedAt: now(),
   });

@@ -10,7 +10,8 @@ export default defineSchema({
     image_url: v.optional(v.string()),
     tokenIdentifier: v.string(),
     onboarding_completed: v.boolean(),
-    // Optional quick-access fields for active learning settings
+    send_email: v.optional(v.boolean()),
+    daily_podcast_enabled: v.optional(v.boolean()),
     target_language: v.optional(v.string()), // ISO 639-1, e.g. "es", "fr"
     proficiency_level: v.optional(
       v.union(

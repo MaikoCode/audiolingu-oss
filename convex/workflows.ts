@@ -2,14 +2,32 @@ import { v } from "convex/values";
 import { internal, api } from "./_generated/api";
 import { WorkflowManager } from "@convex-dev/workflow";
 import { components } from "./_generated/api";
+import { Workpool } from "@convex-dev/workpool";
 import { Id } from "./_generated/dataModel";
-import { action, query } from "./_generated/server";
+import {
+  action,
+  query,
+  internalAction,
+  internalMutation,
+} from "./_generated/server";
+import { Resend } from "resend";
+import { EmailTemplate } from "../components/email-template";
 
 export const workflow = new WorkflowManager(components.workflow);
+
+// Workpools to manage concurrency for daily batch and email sending
+const podcastWorkpool = new Workpool(components.podcastWorkpool, {
+  maxParallelism: 5,
+});
+
+const emailWorkpool = new Workpool(components.emailWorkpool, {
+  maxParallelism: 2,
+});
 
 export const podcastGenerationWorkflow = workflow.define({
   args: {
     userId: v.id("users"),
+    notify: v.optional(v.boolean()),
   },
   handler: async (step, args): Promise<{ episodeId: Id<"episodes"> }> => {
     // 0- Pull learning profile for defaults
@@ -139,7 +157,72 @@ export const podcastGenerationWorkflow = workflow.define({
       { name: "set-episode-status" }
     );
 
+    // 6- Optional: in-workflow notification (unused for now; we notify via email pool)
+    if (args.notify === true) {
+      await step.runAction(internal.workflows.sendPodcastNotification, {
+        userId: args.userId,
+      });
+    }
+
     return { episodeId } as const;
+  },
+});
+
+// Daily batch entrypoint using workpool to fan out jobs safely
+export const generateDailyEpisodes = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    for (const user of users) {
+      if (user.daily_podcast_enabled !== true) continue; // only those who opted in
+      if (user.send_email === false) continue; // respect email opt-out
+      await podcastWorkpool.enqueueAction(
+        ctx,
+        internal.workflows.generateForUserDaily,
+        {
+          userId: user._id,
+        }
+      );
+    }
+  },
+});
+
+// Per-user job: run generation (no in-workflow notify) and queue email via email pool
+export const generateForUserDaily = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    await workflow.start(ctx, internal.workflows.podcastGenerationWorkflow, {
+      userId,
+      notify: false,
+    });
+    await emailWorkpool.enqueueAction(
+      ctx,
+      internal.workflows.sendPodcastNotification,
+      { userId }
+    );
+  },
+});
+
+// Email sender action (called via email workpool and optionally in-workflow)
+export const sendPodcastNotification = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const info = await ctx.runQuery(internal.users.getEmailInfoById, {
+      userId,
+    });
+    if (!info) return;
+    if (!info.send_email) return;
+
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const from = process.env.RESEND_FROM!;
+    const to = info.email;
+    const subject = "Your daily Audiolingu episode is ready";
+    await resend.emails.send({
+      from,
+      to,
+      subject,
+      react: EmailTemplate({ firstName: info.first_name || "there" }),
+    });
   },
 });
 
@@ -156,6 +239,7 @@ export const startMyPodcastGeneration = action({
 
     await workflow.start(ctx, internal.workflows.podcastGenerationWorkflow, {
       userId: currentUser._id,
+      notify: false,
     });
 
     return { ok: true } as const;
