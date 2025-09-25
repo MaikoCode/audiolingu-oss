@@ -31,7 +31,7 @@ export default function EpisodesPage() {
   const canLoadMore = useMemo(() => page && !page.isDone, [page]);
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-4">
+    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-4 pb-24">
       <h1 className="text-2xl font-semibold">All Episodes</h1>
       <div className="space-y-4">
         {items.map((ep) => (
