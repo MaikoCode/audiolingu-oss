@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Headphones } from "lucide-react";
 
 interface EmailTemplateProps {
   firstName: string;
@@ -6,7 +7,6 @@ interface EmailTemplateProps {
 
 export function EmailTemplate({ firstName }: EmailTemplateProps) {
   const siteUrl = process.env.SITE_URL ?? "";
-  const logoSrc = `${siteUrl?.replace(/\/$/, "")}/vercel.svg`;
   const ctaHref = siteUrl || "#";
   return (
     <div
@@ -35,14 +35,14 @@ export function EmailTemplate({ firstName }: EmailTemplateProps) {
             marginBottom: 16,
           }}
         >
-          <img
-            src={logoSrc}
-            alt="Audiolingu"
-            width={28}
-            height={28}
-            style={{ display: "block" }}
-          />
-          <span style={{ fontSize: 16, fontWeight: 600 }}>Audiolingu</span>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center animate-pulse-glow">
+              <Headphones className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              AudioLingu
+            </h1>
+          </div>
         </div>
         <h1 style={{ fontSize: 20, lineHeight: 1.4, margin: "0 0 8px" }}>
           Your daily episode is ready
@@ -62,16 +62,7 @@ export function EmailTemplate({ firstName }: EmailTemplateProps) {
           href={ctaHref}
           target="_blank"
           rel="noreferrer"
-          style={{
-            display: "inline-block",
-            backgroundColor: "#0ea5e9",
-            color: "#ffffff",
-            padding: "10px 16px",
-            borderRadius: 8,
-            textDecoration: "none",
-            fontSize: 14,
-            fontWeight: 600,
-          }}
+          className="bg-primary text-white px-4 py-2 rounded-lg"
         >
           Open Audiolingu
         </a>
@@ -80,14 +71,7 @@ export function EmailTemplate({ firstName }: EmailTemplateProps) {
           browser: {ctaHref}
         </p>
       </div>
-      <p
-        style={{
-          fontSize: 11,
-          color: "#94a3b8",
-          marginTop: 16,
-          textAlign: "center",
-        }}
-      >
+      <p className="text-sm text-muted-foreground mt-4 text-center">
         You are receiving this because you subscribed to daily episodes. You can
         manage notifications in settings.
       </p>
