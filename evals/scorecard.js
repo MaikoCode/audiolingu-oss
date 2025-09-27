@@ -1,9 +1,9 @@
 import "dotenv/config";
 import path from "node:path";
 import fs from "node:fs";
-import Scorecard from "scorecard-ai";
+import Scorecard, { runAndEvaluate } from "scorecard-ai";
+import { pathToFileURL } from "url";
 import OpenAI from "openai";
-import { runAndEvaluate } from "scorecard-ai";
 
 // Load environment from the project root .env.local when running from /evals
 const envPathFromRoot = path.resolve(process.cwd(), "..", ".env.local");
@@ -24,9 +24,8 @@ const getRequiredEnv = (name) => {
 const SCORECARD_API_KEY = getRequiredEnv("SCORECARD_API_KEY");
 const PROJECT_ID = getRequiredEnv("SCORECARD_PROJECT_ID");
 
-const scorecard = new Scorecard({
+const scorecardClient = new Scorecard({
   apiKey: SCORECARD_API_KEY,
-  projectId: PROJECT_ID,
 });
 if (!PROJECT_ID || typeof PROJECT_ID !== "string") {
   throw new Error(
@@ -40,72 +39,549 @@ console.log(
   PROJECT_ID,
   `(type: ${typeof PROJECT_ID})`
 );
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_KEY_FOR_SCORECARD,
-});
 
-async function runSystem(systemInput) {
-  const recipient = systemInput.recipient ?? "";
-  const response = await openai.responses.create({
-    model: "gpt-5",
-    instructions:
-      `You are a tone translator. Convert the user's message to the tone: ${systemInput.tone}. ` +
-      (systemInput.recipient
-        ? `Address the recipient: ${systemInput.recipient}`
-        : ""),
-    input: systemInput.original,
-  });
-  return {
-    rewritten: response.output_text,
+export const PODCAST_WRITER_INSTRUCTIONS = `
+You are an expert podcast scriptwriter specializing in TTS-optimized content.
+Your task is to create podcast episode scripts that are always written in the user's target language,
+engaging, fresh, and adapted to the user's profile while being fully optimized for text-to-speech.
+
+Process:
+1. Use the pullUserProfile tool to gather user data (interests, language level, duration, target language).
+   - The podcast script must always be generated in the specified target language.
+   - Never switch to a different language unless explicitly requested.
+
+2. Use the pullPastEpisodes tool to retrieve summaries of past episodes. 
+   Avoid repeating the same topics or perspectives unless you introduce new angles or deeper insights.
+
+3. Treat the user's interests as a *lens* or reference point, not the entire subject. 
+   For example, if the user likes football, you may explore teamwork, discipline, or cultural impact 
+   rather than producing only football-centered episodes.
+
+4. Be creative and unexpected in your topic connections while staying relevant to the user's interests.
+   Vary your content approach using these strategies:
+   - Rotate episode angles: historical, personal, scientific, cultural, philosophical
+   - Alternate between local and global perspectives
+   - Mix serious analysis with lighter, more entertaining content
+   - Balance current events with timeless topics
+   - Vary between concrete examples and abstract concepts
+
+5. Choose a single-voice format suitable for TTS:
+   - Monologue (classic narration, direct delivery)
+   - Storytelling (narrative or anecdotal, fictional or nonfictional)
+   - Explainer (clear, structured breakdown of a concept)
+   You may use rhetorical questions strategically for engagement, but do not simulate multiple speakers.
+
+6. Structure content based on episode duration:
+   - 5-10 minutes: Single focused topic with minimal tangents, tight structure
+   - 15-20 minutes: Main topic plus 1-2 related subtopics, natural transitions
+   - 30+ minutes: Deep exploration with multiple angles, examples, and comprehensive analysis
+
+7. Create engaging openings using these techniques:
+   - Start with a surprising fact, thought-provoking question, or intriguing scenario
+   - Use the first 30 seconds to establish immediate relevance to the listener
+   - Create curiosity gaps that get resolved throughout the episode
+
+8. Adapt language complexity precisely to the user's language level:
+   - A1: 5-8 word sentences, present tense focus, concrete nouns, basic connectors (and, but, because)
+   - A2: 8-12 word sentences, past/future tenses, simple descriptions, everyday vocabulary
+   - B1: 12-15 word sentences, some subordinate clauses, abstract concepts with clear examples
+   - B2: Complex sentences acceptable, conditional tenses, cultural references with context
+   - C1+: Full linguistic range, idiomatic expressions, nuanced meanings, sophisticated vocabulary
+
+TTS Script Guidelines:
+- Write in clear, simple structures that TTS can pronounce naturally
+- Use phonetic spellings for difficult names or technical terms
+- Add strategic pauses with ellipses (...) or line breaks for natural pacing
+- Avoid complex punctuation that may confuse TTS pronunciation
+- Write numbers and dates in word form (e.g., "twenty twenty-five")
+- Provide pronunciation guides [TECH-ni-cal] when useful for clarity
+- Use a conversational tone without depending on vocal inflection cues
+- Ensure logical flow without requiring human ad-libs or corrections
+- Do not announce future episodes or create cliffhangers for next episodes
+
+Deliverable:
+A TTS-ready podcast script written in the user's target language that:
+- Adapts precisely to the user's language level and interests
+- Avoids repeating past episode content while maintaining thematic coherence
+- Feels engaging, natural, and appropriately complex
+- Uses creative angles to keep content fresh and surprising
+- Flows smoothly when converted to speech synthesis
+`;
+
+async function runPodcastSystem(systemInput) {
+  const userProfile = {
+    interests: systemInput.interests,
+    level: systemInput.level,
+    duration: systemInput.duration,
+    language: systemInput.language,
+    userId: systemInput.userId || "test-user", // Mock for testing
   };
+
+  try {
+    const episode = await generatePodcastEpisode(userProfile);
+
+    return {
+      episode_script: episode,
+      user_profile: userProfile,
+    };
+  } catch (error) {
+    console.error("Episode generation failed:", error);
+    return {
+      episode_script: "Error generating episode",
+      user_profile: userProfile,
+      error: error.message,
+    };
+  }
 }
 
-const testcases = [
+async function generatePodcastEpisode(userProfile) {
+  const client = new OpenAI({ apiKey: process.env.OPENAI_KEY_FOR_SCORECARD });
+  const response = await client.responses.create({
+    model: "gpt-5",
+    instructions: PODCAST_WRITER_INSTRUCTIONS,
+    input: `Generate a podcast episode script for the user profile: ${JSON.stringify(userProfile)}`,
+  });
+
+  return response.output_text;
+}
+
+// Test cases - 20 diverse scenarios
+const testCases = [
+  // A1 Level Tests
   {
-    // `inputs` gets passed to the system as an object.
     inputs: {
-      original: "We need your feedback on the new designs ASAP.",
-      tone: "polite",
-    },
-    // `expected` is the ideal output of the system used by the LLM-as-a-judge to evaluate the system.
-    expected: {
-      idealRewritten:
-        "Hi! your feedback is crucial to the success of the new designs. Please share your thoughts as soon as possible.",
+      interests: ["cooking"],
+      level: "A1",
+      duration: 5,
+      language: "English",
+      userId: "user1",
     },
   },
   {
     inputs: {
-      original:
-        "I'll be late to the office because my cat is sleeping on my keyboard.",
-      tone: "funny",
+      interests: ["animals", "pets"],
+      level: "A1",
+      duration: 8,
+      language: "Spanish",
+      userId: "user2",
     },
-    expected: {
-      idealRewritten:
-        "Hey team! My cat's napping on my keyboard and I'm just waiting for her to give me permission to leave. I'll be a bit late!",
+  },
+  {
+    inputs: {
+      interests: ["sports"],
+      level: "A1",
+      duration: 10,
+      language: "French",
+      userId: "user3",
+    },
+  },
+  {
+    inputs: {
+      interests: ["music"],
+      level: "A1",
+      duration: 7,
+      language: "German",
+      userId: "user4",
+    },
+  },
+
+  // A2 Level Tests
+  {
+    inputs: {
+      interests: ["travel", "photography"],
+      level: "A2",
+      duration: 12,
+      language: "English",
+      userId: "user5",
+    },
+  },
+  {
+    inputs: {
+      interests: ["movies", "cinema"],
+      level: "A2",
+      duration: 15,
+      language: "Italian",
+      userId: "user6",
+    },
+  },
+  {
+    inputs: {
+      interests: ["gardening"],
+      level: "A2",
+      duration: 10,
+      language: "Portuguese",
+      userId: "user7",
+    },
+  },
+
+  // B1 Level Tests
+  {
+    inputs: {
+      interests: ["technology", "smartphones"],
+      level: "B1",
+      duration: 15,
+      language: "English",
+      userId: "user8",
+    },
+  },
+  {
+    inputs: {
+      interests: ["books", "reading"],
+      level: "B1",
+      duration: 18,
+      language: "Spanish",
+      userId: "user9",
+    },
+  },
+  {
+    inputs: {
+      interests: ["fitness", "health"],
+      level: "B1",
+      duration: 20,
+      language: "French",
+      userId: "user10",
+    },
+  },
+  {
+    inputs: {
+      interests: ["art", "painting"],
+      level: "B1",
+      duration: 16,
+      language: "German",
+      userId: "user11",
+    },
+  },
+
+  // B2 Level Tests
+  {
+    inputs: {
+      interests: ["business", "entrepreneurship"],
+      level: "B2",
+      duration: 25,
+      language: "English",
+      userId: "user12",
+    },
+  },
+  {
+    inputs: {
+      interests: ["science", "biology"],
+      level: "B2",
+      duration: 22,
+      language: "Spanish",
+      userId: "user13",
+    },
+  },
+  {
+    inputs: {
+      interests: ["psychology", "mental health"],
+      level: "B2",
+      duration: 20,
+      language: "Italian",
+      userId: "user14",
+    },
+  },
+  {
+    inputs: {
+      interests: ["history", "ancient civilizations"],
+      level: "B2",
+      duration: 28,
+      language: "French",
+      userId: "user15",
+    },
+  },
+
+  // C1 Level Tests
+  {
+    inputs: {
+      interests: ["philosophy", "ethics"],
+      level: "C1",
+      duration: 30,
+      language: "English",
+      userId: "user16",
+    },
+  },
+  {
+    inputs: {
+      interests: ["economics", "global markets"],
+      level: "C1",
+      duration: 35,
+      language: "German",
+      userId: "user17",
+    },
+  },
+  {
+    inputs: {
+      interests: ["literature", "poetry"],
+      level: "C1",
+      duration: 25,
+      language: "Spanish",
+      userId: "user18",
+    },
+  },
+
+  // C2 Level Tests
+  {
+    inputs: {
+      interests: ["neuroscience", "consciousness"],
+      level: "C2",
+      duration: 40,
+      language: "English",
+      userId: "user19",
+    },
+  },
+  {
+    inputs: {
+      interests: ["political science", "governance"],
+      level: "C2",
+      duration: 45,
+      language: "French",
+      userId: "user20",
     },
   },
 ];
 
-const toneAccuracyMetric = await scorecard.metrics.create(PROJECT_ID, {
-  name: "Tone accuracy",
-  evalType: "ai",
-  outputType: "int",
-  promptTemplate:
-    "You are a tone evaluator. Grade the response on how well it matches the intended tone {{inputs.tone}} and the tone of the ideal response. Use a score of 1 if the tones are very different and 5 if they are the exact same.\n\nResponse: {{outputs.rewritten}}\n\nIdeal response: {{expected.idealRewritten}}\n\n{{ gradingInstructionsAndExamples }}",
-});
+// LLM-as-Judge Metrics
+const metrics = [
+  {
+    name: "creativity_score",
+    evalType: "ai",
+    outputType: "integer",
+    promptTemplate: `Rate 1-5: How creative and unexpected are the topic connections while staying relevant to user interests?
+  
+  User interests: {{inputs.interests}}
+  Language level: {{inputs.level}}
+  
+  Episode to evaluate:
+  {{outputs.episode_script}}
+  
+  Evaluation criteria:
+  - 1: Too literal; just talks about the interest directly
+  - 2: Slightly creative but mostly predictable
+  - 3: Some creative angles with reasonable connections
+  - 4: Creative, unexpected connections that feel natural
+  - 5: Brilliant, surprising connections that make perfect sense
+  
+  Consider: Does this go beyond obvious topics related to the interests? Are the connections thoughtful and engaging?
+  
+  Provide only a number from 1-5.`,
+    evalModelName: "gpt-5-2025-08-07",
+    temperature: 0,
+    passingThreshold: 4,
+  },
 
-const recipientAddressMetric = await scorecard.metrics.create(PROJECT_ID, {
-  name: "Recipient address",
-  evalType: "ai",
-  outputType: "boolean",
-  promptTemplate:
-    "Does the response refer to the correct recipient: {{inputs.recipient}}? Response: {{outputs.rewritten}}\n\n{{ gradingInstructionsAndExamples }}",
-});
+  {
+    name: "engagement_score",
+    evalType: "ai",
+    outputType: "integer",
+    promptTemplate: `Rate 1-5: How engaging is the opening? Does it hook the listener in the first 30 seconds?
+  
+  Episode opening to evaluate:
+  {{outputs.episode_script}}
+  
+  Focus on the first 2-3 sentences. Evaluation criteria:
+  - 1: Boring, generic opening with no hook
+  - 2: Weak hook; mildly interesting
+  - 3: Decent opening but not compelling
+  - 4: Strong hook that creates curiosity or a good question
+  - 5: Irresistible opening that demands attention
+  
+  Consider: Does it start with something surprising, intriguing, or immediately relevant? Would you keep listening?
+  
+  Provide only a number from 1-5.`,
+    evalModelName: "gpt-5-2025-08-07",
+    temperature: 0,
+    passingThreshold: 4,
+  },
 
-const run = await runAndEvaluate(scorecard, {
-  projectId: PROJECT_ID,
-  testcases: testcases,
-  metricIds: [toneAccuracyMetric.id, recipientAddressMetric.id],
-  system: runSystem,
-});
-console.log(`Go to ${run.url} to view your scored results.`);
+  {
+    name: "language_level_score",
+    evalType: "ai",
+    outputType: "integer",
+    promptTemplate: `Rate 1-5: How well does this script match {{inputs.level}} language complexity?
+  
+  Target level: {{inputs.level}}
+  Episode to evaluate:
+  {{outputs.episode_script}}
+  
+  Level requirements:
+  - A1: 5-8 word sentences, present tense, concrete nouns, basic connectors
+  - A2: 8-12 word sentences, past/future tenses, simple descriptions
+  - B1: 12-15 word sentences, some subordinate clauses, abstract concepts with examples
+  - B2: Complex sentences OK, conditional tenses, cultural references with context
+  - C1/C2: Full linguistic range, idiomatic expressions, nuanced meanings
+  
+  Scoring:
+  - 1: Completely wrong level (too simple/complex)
+  - 2: Mostly wrong with significant issues
+  - 3: Mostly appropriate with some issues
+  - 4: Well-matched to level requirements
+  - 5: Perfect level targeting
+  
+  Provide only a number from 1-5.`,
+    evalModelName: "gpt-5-2025-08-07",
+    temperature: 0,
+    passingThreshold: 4,
+  },
+
+  {
+    name: "tts_readiness_score",
+    evalType: "ai",
+    outputType: "integer",
+    promptTemplate: `Rate 1-5: How well optimized is this script for text-to-speech synthesis?
+  
+  Episode to evaluate:
+  {{outputs.episode_script}}
+  
+  Check for TTS issues:
+  - Numbers written as digits (should be words like "twenty twenty-five")
+  - Complex punctuation that confuses TTS (excessive commas, semicolons)
+  - Difficult pronunciations without phonetic guides
+  - Awkward sentence structures for speech
+  - Missing natural pauses where needed
+  - Abbreviations that won't read well aloud
+  - Very long sentences that are hard to speak
+  
+  Scoring:
+  - 1: Many TTS issues present; would sound unnatural
+  - 2: Several issues; somewhat unnatural
+  - 3: Some issues but mostly readable by TTS
+  - 4: Well optimized with minor issues
+  - 5: Perfect TTS optimization; would sound natural
+  
+  Provide only a number from 1-5.`,
+    evalModelName: "gpt-5-2025-08-07",
+    temperature: 0,
+    passingThreshold: 4,
+  },
+
+  {
+    name: "interest_integration_score",
+    evalType: "ai",
+    outputType: "integer",
+    promptTemplate: `Rate 1-5: How well are the user's interests integrated without being the sole focus?
+  
+  User interests: {{inputs.interests}}
+  Episode to evaluate:
+  {{outputs.episode_script}}
+  
+  Good integration means:
+  - Interests are used as a lens or connection point
+  - Episode explores broader themes that relate to interests
+  - Not just talking directly about the interest topic
+  - Creates meaningful connections between interests and larger ideas
+  
+  Scoring:
+  - 1: Ignores interests completely or only talks directly about interests
+  - 2: Weak connection; too literal or too distant
+  - 3: Some connection but inconsistent
+  - 4: Good balance; interests as springboard for broader topics
+  - 5: Perfect integration; interests woven naturally into larger themes
+  
+  Provide only a number from 1-5.`,
+    evalModelName: "gpt-5-2025-08-07",
+    temperature: 0,
+    passingThreshold: 4,
+  },
+];
+
+const toMetricCreateParams = (m) => {
+  const isAI = m.evalType === "ai";
+  const isInt = m.outputType === "integer" || m.outputType === "int";
+  if (!isAI) {
+    throw new Error(
+      `Only ai evalType is supported in this script (got: ${m.evalType})`
+    );
+  }
+  if (!(isInt || m.outputType === "boolean")) {
+    throw new Error(
+      `Unsupported outputType: ${m.outputType} (supported: integer|boolean)`
+    );
+  }
+
+  const base = {
+    evalType: "ai",
+    name: m.name,
+    promptTemplate: m.promptTemplate,
+    description: m.description ?? null,
+    guidelines: m.guidelines ?? null,
+    evalModelName: m.evalModelName,
+    temperature: typeof m.temperature === "number" ? m.temperature : 0,
+  };
+
+  if (isInt) {
+    return {
+      ...base,
+      outputType: "int",
+      passingThreshold:
+        typeof m.passingThreshold === "number"
+          ? Math.max(1, Math.min(5, Math.round(m.passingThreshold)))
+          : 4,
+    };
+  }
+
+  return {
+    ...base,
+    outputType: "boolean",
+  };
+};
+
+async function createProjectMetrics() {
+  const createdIds = [];
+  for (const m of metrics) {
+    const body = toMetricCreateParams(m);
+    const metric = await scorecardClient.metrics.create(PROJECT_ID, body);
+    createdIds.push(metric.id);
+  }
+  return createdIds;
+}
+
+// Main evaluation function
+async function runPodcastEvaluation() {
+  console.log("Starting podcast evaluation with Scorecard...");
+  console.log(
+    `Testing ${testCases.length} scenarios across ${metrics.length} metrics`
+  );
+
+  try {
+    const metricIds = await createProjectMetrics();
+
+    const run = await runAndEvaluate(
+      scorecardClient,
+      {
+        projectId: PROJECT_ID,
+        testcases: testCases.map((tc) => ({
+          ...tc,
+          expected: tc.expected ?? {},
+        })),
+        metricIds,
+        system: runPodcastSystem,
+      },
+      { runInParallel: true }
+    );
+
+    console.log("✅ Evaluation run created!");
+    console.log(`\n🌐 View detailed results at: ${run.url}`);
+
+    return { url: run.url, runId: run.id };
+  } catch (error) {
+    console.error("❌ Evaluation failed:", error);
+    throw error;
+  }
+}
+
+// Run the evaluation
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  runPodcastEvaluation()
+    .then(() => {
+      console.log(
+        "\n✨ Evaluation complete! Check the Scorecard dashboard for detailed analysis."
+      );
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error("Evaluation failed:", error);
+      process.exit(1);
+    });
+}
+
+export { runPodcastEvaluation, testCases, metrics, runPodcastSystem };
