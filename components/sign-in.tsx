@@ -169,7 +169,9 @@ export default function SignIn() {
               We’ll email you a secure sign-in link. No password required.
             </p>
           </div>
-
+          <div className="w-full flex flex-col gap-2 items-center">
+            <p className="text-xs text-muted-foreground font-bold">Or</p>
+          </div>
           <div
             className={cn(
               "w-full gap-2 flex items-center",

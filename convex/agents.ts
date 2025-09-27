@@ -331,3 +331,51 @@ export const generateSummaryFromScript = internalAction({
     return result.text.replace(/\s+/g, " ").trim();
   },
 });
+
+// Quiz generator agent
+const QUIZ_GENERATOR_INSTRUCTIONS = `
+You create multiple-choice quizzes from a provided podcast script.
+
+Rules:
+- Produce JSON ONLY. No prose. Output must parse directly.
+- Use the SAME LANGUAGE as the input script for the entire quiz (title, prompts, choices, explanations). Do not switch languages.
+- JSON shape:
+  {
+    "title": string,
+    "questions": [
+      {
+        "id": string,               // stable id like q1, q2, ...
+        "prompt": string,           // the question text
+        "choices": string[],        // 3-5 options
+        "correctIndex": number,     // index in choices array
+        "explanation": string       // short explanation why correct is right
+      }
+    ]
+  }
+- Choose 5–10 questions depending on script length and density.
+- Avoid trivial recall; prefer comprehension and key details.
+- Keep language level aligned with the script's level.
+- No duplicate or overlapping questions.
+`;
+
+export const quiz_generator = new Agent(components.agent, {
+  name: "Quiz Generator",
+  languageModel: "openai/gpt-5",
+  instructions: QUIZ_GENERATOR_INSTRUCTIONS,
+  maxSteps: 1,
+});
+
+export const generateQuizFromScript = internalAction({
+  args: { script: v.string() },
+  handler: async (ctx, args) => {
+    const { thread } = await quiz_generator.continueThread(ctx, {
+      threadId: (await quiz_generator.createThread(ctx, {})).threadId,
+    });
+    const result = await thread.generateText({
+      prompt:
+        "Create a JSON quiz from this podcast script. Return JSON ONLY.\n\nScript:\n" +
+        args.script,
+    });
+    return result.text;
+  },
+});

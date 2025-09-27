@@ -1,5 +1,3 @@
-"use client";
-
 import {
   SidebarInset,
   SidebarProvider,
@@ -8,8 +6,18 @@ import {
 import { AppSidebar } from "@/components/features/layout/AppSidebar";
 import { NowPlayingProvider } from "@/components/features/episodes/NowPlayingContext";
 import NowPlayingBar from "@/components/features/episodes/NowPlayingBar";
+import { getToken } from "@/lib/auth-server";
+import { redirect } from "next/navigation";
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default async function AppLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const token = await getToken();
+  if (!token) {
+    redirect("/sign-in");
+  }
   return (
     <SidebarProvider>
       <NowPlayingProvider>

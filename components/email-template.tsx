@@ -35,11 +35,33 @@ export function EmailTemplate({ firstName }: EmailTemplateProps) {
             marginBottom: 16,
           }}
         >
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center animate-pulse-glow">
-              <Headphones className="w-5 h-5 text-white" />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                background: "linear-gradient(135deg, #6366f1, #a855f7)",
+                borderRadius: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Headphones size={20} color="#ffffff" />
             </div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            <h1
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                margin: "0 0 0 8px",
+                color: "#0f172a",
+              }}
+            >
               AudioLingu
             </h1>
           </div>
@@ -62,7 +84,15 @@ export function EmailTemplate({ firstName }: EmailTemplateProps) {
           href={ctaHref}
           target="_blank"
           rel="noreferrer"
-          className="bg-primary text-white px-4 py-2 rounded-lg"
+          style={{
+            display: "inline-block",
+            backgroundColor: "#6366f1",
+            color: "#ffffff",
+            padding: "8px 16px",
+            borderRadius: 8,
+            textDecoration: "none",
+            fontWeight: 600,
+          }}
         >
           Open Audiolingu
         </a>
@@ -71,7 +101,14 @@ export function EmailTemplate({ firstName }: EmailTemplateProps) {
           browser: {ctaHref}
         </p>
       </div>
-      <p className="text-sm text-muted-foreground mt-4 text-center">
+      <p
+        style={{
+          fontSize: 12,
+          color: "#64748b",
+          marginTop: 16,
+          textAlign: "center",
+        }}
+      >
         You are receiving this because you subscribed to daily episodes. You can
         manage notifications in settings.
       </p>

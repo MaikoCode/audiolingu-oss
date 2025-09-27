@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import React from "react";
-import AudioPlayer from "./AudioPlayer";
 import { useNowPlaying } from "./NowPlayingContext";
 import {
   Card,
@@ -17,7 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
   Tooltip,
@@ -55,8 +54,19 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
     episode.audioStorageId ? { key: episode.audioStorageId } : "skip"
   );
   const setFeedback = useMutation(api.episodes.setFeedback);
+  const generateQuiz = useAction(api.quizzes.generateQuizForEpisode);
+  const existingQuiz = useQuery(api.quizzes.getQuizPublicIdForEpisode, {
+    episodeId: episode._id,
+  });
   const { setCurrent, openTranscript } = useNowPlaying();
   // bottom bar handles playback; we only provide entry points here
+
+  // Local loading state to prevent multiple quiz generations
+  const [isGeneratingQuiz, setIsGeneratingQuiz] =
+    React.useState<boolean>(false);
+  const [generatedPublicId, setGeneratedPublicId] = React.useState<
+    string | undefined
+  >(undefined);
 
   const handleSetFeedback = async (value: "good" | "bad" | undefined) => {
     try {
@@ -179,6 +189,63 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
                       Transcript
                     </Button>
                   ) : null}
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  {existingQuiz?.publicId || generatedPublicId ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      aria-label="Open quiz"
+                      onClick={() => {
+                        const publicId =
+                          existingQuiz?.publicId || generatedPublicId;
+                        if (!publicId) return;
+                        window.open(
+                          `/quiz/${publicId}`,
+                          "_blank",
+                          "noopener,noreferrer"
+                        );
+                      }}
+                    >
+                      Open Quiz
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      aria-label="Generate quiz"
+                      disabled={isGeneratingQuiz}
+                      aria-disabled={isGeneratingQuiz}
+                      aria-busy={isGeneratingQuiz}
+                      onClick={async () => {
+                        if (isGeneratingQuiz) return;
+                        setIsGeneratingQuiz(true);
+                        try {
+                          const res = await generateQuiz({
+                            episodeId: episode._id,
+                          });
+                          setGeneratedPublicId(res.publicId);
+                        } catch {
+                          // silently ignore
+                        } finally {
+                          // In case navigation doesn't occur (error), re-enable
+                          setIsGeneratingQuiz(false);
+                        }
+                      }}
+                    >
+                      {isGeneratingQuiz ? (
+                        <span className="inline-flex items-center">
+                          <span
+                            className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                          Generating...
+                        </span>
+                      ) : (
+                        "Generate Quiz"
+                      )}
+                    </Button>
+                  )}
                 </div>
                 <TooltipProvider>
                   <div className="flex items-center gap-2">

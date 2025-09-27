@@ -127,4 +127,24 @@ export default defineSchema({
     .index("by_user_createdAt", ["userId", "createdAt"])
     .index("by_user_status", ["userId", "status"])
     .index("by_status", ["status"]),
+
+  // Quizzes generated from podcast episodes
+  quizzes: defineTable({
+    episodeId: v.id("episodes"),
+    publicId: v.string(), // e.g., "quiz_8sd82hfjxxxxxxxx"
+    title: v.string(),
+    questions: v.array(
+      v.object({
+        id: v.string(),
+        prompt: v.string(),
+        choices: v.array(v.string()),
+        correctIndex: v.number(),
+        explanation: v.optional(v.string()),
+      })
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_publicId", ["publicId"]) // for anonymous public access
+    .index("by_episode", ["episodeId"]),
 });

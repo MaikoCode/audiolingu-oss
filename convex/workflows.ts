@@ -4,6 +4,7 @@ import { WorkflowManager } from "@convex-dev/workflow";
 import { components } from "./_generated/api";
 import { Workpool } from "@convex-dev/workpool";
 import { Id } from "./_generated/dataModel";
+// (no additional types needed here)
 import {
   action,
   query,
@@ -250,6 +251,8 @@ export const startMyPodcastGeneration = action({
     return { ok: true } as const;
   },
 });
+
+// Moved quiz actions/queries to convex/quizzes.ts
 
 // Public query: minimal user greeting info
 export const myGreeting = query({

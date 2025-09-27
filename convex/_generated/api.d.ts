@@ -16,6 +16,7 @@ import type * as emails from "../emails.js";
 import type * as episodes from "../episodes.js";
 import type * as http from "../http.js";
 import type * as images from "../images.js";
+import type * as quizzes from "../quizzes.js";
 import type * as r2 from "../r2.js";
 import type * as users from "../users.js";
 import type * as workflows from "../workflows.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   episodes: typeof episodes;
   http: typeof http;
   images: typeof images;
+  quizzes: typeof quizzes;
   r2: typeof r2;
   users: typeof users;
   workflows: typeof workflows;
