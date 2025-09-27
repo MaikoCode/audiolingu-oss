@@ -75,6 +75,11 @@ export const podcastGenerationWorkflow = workflow.define({
       internal.agents.generateTitleFromScript,
       { script }
     );
+    // 2c - Generate a short episode summary
+    const episodeSummary = await step.runAction(
+      internal.agents.generateSummaryFromScript,
+      { script }
+    );
 
     await step.runMutation(
       internal.episodes.setScript,
@@ -82,7 +87,7 @@ export const podcastGenerationWorkflow = workflow.define({
         episodeId,
         script,
         title: episodeTitle || "Personalized Episode",
-        summary: undefined,
+        summary: episodeSummary,
       },
       { name: "set-episode-script" }
     );

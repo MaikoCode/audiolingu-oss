@@ -351,6 +351,23 @@ export const get = internalQuery({
   },
 });
 
+export const getPastSummaries = internalQuery({
+  args: { userId: v.id("users"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = Math.min(Math.max(args.limit ?? 10, 1), 50);
+    const page = await ctx.db
+      .query("episodes")
+      .withIndex("by_user_createdAt", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .paginate({ cursor: null, numItems: limit });
+
+    return page.page.map((e) => ({
+      title: e.title,
+      summary: e.summary,
+    }));
+  },
+});
+
 // Public queries for listing episodes for the current user
 export const myRecentEpisodes = query({
   args: { limit: v.optional(v.number()) },
