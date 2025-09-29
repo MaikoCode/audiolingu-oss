@@ -8,6 +8,8 @@ import { NowPlayingProvider } from "@/components/features/episodes/NowPlayingCon
 import NowPlayingBar from "@/components/features/episodes/NowPlayingBar";
 import { getToken } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 export default async function AppLayout({
   children,
@@ -17,6 +19,10 @@ export default async function AppLayout({
   const token = await getToken();
   if (!token) {
     redirect("/sign-in");
+  }
+  const me = await fetchQuery(api.users.me, {}, { token });
+  if (!me || me.onboarding_completed !== true) {
+    redirect("/onboarding");
   }
   return (
     <SidebarProvider>
