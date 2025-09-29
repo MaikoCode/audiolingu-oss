@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
-// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import PodcastCarousel3D from "@/components/features/carousel3d/PodcastCarousel3D";
-import { Headphones, Sparkles } from "lucide-react";
+import { Headphones } from "lucide-react";
 import Link from "next/link";
 
 export default function HomePage() {

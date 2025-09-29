@@ -76,11 +76,12 @@ export const VoiceCard = ({
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-md bg-muted overflow-hidden flex items-center justify-center text-xl">
             {voice.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={voice.imageUrl}
                 alt={`${voice.name} avatar`}
                 className="w-full h-full object-cover"
+                width={48}
+                height={48}
               />
             ) : (
               <span>🎙️</span>

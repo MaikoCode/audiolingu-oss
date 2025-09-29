@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronsLeft, ChevronsRight, Pause, Play } from "lucide-react";
 
@@ -62,11 +62,11 @@ export default function Carousel3D({
   const [isPlaying, setIsPlaying] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
 
-  const getCurrentIndex = () => {
+  const getCurrentIndex = useCallback(() => {
     const itemAngle = 360 / items.length;
     const normalizedRotation = ((-rotation % 360) + 360) % 360;
     return Math.round(normalizedRotation / itemAngle) % items.length;
-  };
+  }, [items.length, rotation]);
 
   const currentItem = items[getCurrentIndex()];
 
@@ -166,7 +166,15 @@ export default function Carousel3D({
       document.removeEventListener("mousemove", handleGlobalMouseMove);
       document.removeEventListener("mouseup", handleGlobalMouseUp);
     };
-  }, [isDragging, startX, startRotation, rotation, dragSensitivity]);
+  }, [
+    isDragging,
+    startX,
+    startRotation,
+    rotation,
+    dragSensitivity,
+    items.length,
+    getCurrentIndex,
+  ]);
 
   return (
     <div className={`w-full relative ${className}`}>
