@@ -106,10 +106,11 @@ export const generateAudioWithWordAlignments = internalAction({
             buf.byteLength
           );
         }
-        normalizedAlignment =
-          parsed["normalized_alignment"] ??
-          parsed["normalizedAlignment"] ??
-          parsed["alignment"];
+        // normalizedAlignment =
+        //   parsed["normalized_alignment"] ??
+        //   parsed["normalizedAlignment"] ??
+        //   parsed["alignment"];
+        normalizedAlignment = parsed["alignment"];
       } catch (_e) {
         // leave audioBytes null to trigger fallback
       }
@@ -129,10 +130,12 @@ export const generateAudioWithWordAlignments = internalAction({
         const buf = Buffer.from(cleaned, "base64");
         audioBytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
       }
-      normalizedAlignment =
-        resObj["normalized_alignment"] ??
-        resObj["normalizedAlignment"] ??
-        resObj["alignment"];
+      // normalizedAlignment =
+      //   resObj["normalized_alignment"] ??
+      //   resObj["normalizedAlignment"] ??
+      //   resObj["alignment"];
+
+      normalizedAlignment = resObj["alignment"];
     }
 
     // If timestamps call didn't return audio, fall back to plain audio generation
