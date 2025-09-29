@@ -67,6 +67,59 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
   const [generatedPublicId, setGeneratedPublicId] = React.useState<
     string | undefined
   >(undefined);
+  const [isDownloading, setIsDownloading] = React.useState<boolean>(false);
+
+  const sanitizeFilename = (name: string) => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9\-_. ]+/g, " ")
+      .trim()
+      .replace(/\s+/g, "-");
+  };
+
+  const handleDownload = async () => {
+    const url = audio?.url;
+    if (!url) return;
+    try {
+      setIsDownloading(true);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to download audio");
+      const blob = await response.blob();
+
+      const contentType = response.headers.get("Content-Type") || blob.type;
+      let extension = "mp3";
+      if (contentType.includes("wav")) extension = "wav";
+      else if (contentType.includes("aac")) extension = "aac";
+      else if (contentType.includes("mpeg")) extension = "mp3";
+      else if (contentType.includes("ogg")) extension = "ogg";
+      else if (contentType.includes("x-m4a") || contentType.includes("mp4"))
+        extension = "m4a";
+
+      const fallback = episode.title
+        ? sanitizeFilename(episode.title)
+        : "episode";
+      const filename = `${fallback || "episode"}.${extension}`;
+
+      const blobUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = filename;
+      anchor.rel = "noopener noreferrer";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 0);
+    } catch {
+      // Fallback: open in new tab if the browser blocks programmatic download
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch {
+        // ignore
+      }
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const handleSetFeedback = async (value: "good" | "bad" | undefined) => {
     try {
@@ -246,6 +299,20 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
                       )}
                     </Button>
                   )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={
+                      isDownloading ? "Downloading" : "Download episode"
+                    }
+                    disabled={!audio?.url || isDownloading}
+                    onClick={handleDownload}
+                  >
+                    ⤓{" "}
+                    <span className="hidden sm:inline">
+                      {isDownloading ? "Downloading…" : "Download"}
+                    </span>
+                  </Button>
                 </div>
                 <TooltipProvider>
                   <div className="flex items-center gap-2">
