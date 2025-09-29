@@ -1,36 +1,102 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 🚀 Project Overview
 
-## Getting Started
+Audiolingu is an open‑source language‑learning companion that turns podcasts into interactive lessons. It transcribes episodes, generates quizzes, and lets you follow along with transcripts, voices, and progress tracking — all built for The Modern Stack Hackathon.
 
-First, run the development server:
+This repository is fully open source. Contributions, issues, and pull requests are welcome.
+
+## ✨ Features
+
+- Interactive episode playback with transcript sync
+- AI‑generated quizzes and progress scoring
+- Voice catalog with selectable voices
+- Onboarding flow for language, level, and interests
+- Mobile‑friendly layout with a persistent now‑playing bar
+- Authentication with Google
+
+## 🛠️ Tech Stack
+
+- Next.js App Router (React 19)
+- TypeScript, TailwindCSS, Radix UI, shadcn/ui
+- Convex (database, auth, functions, workflows)
+- OpenAI + ElevenLabs for AI and TTS
+- Upstash Redis for rate‑limiting/caching
+- Resend for transactional email
+
+## 📦 Installation & Usage
+
+Prerequisites:
+
+- Node.js 18+ and npm
+- Convex CLI and a Convex project
+
+1. Clone and install
+
+```bash
+git clone <your-fork-or-repo-url>
+cd audiolingu
+npm install
+```
+
+2. Local environment
+
+```bash
+cp .env.example .env.local
+# Fill in values as needed (see Environment Variables below)
+```
+
+3. Dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# visit http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Build & start (production)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run build
+npm run start
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🌍 Demo / Screenshots
 
-## Learn More
+Add screenshots or a demo link here.
 
-To learn more about Next.js, take a look at the following resources:
+## ☁️ Deployment (Convex)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Follow the Convex deployment guide: [Convex Deployment Guide](ADD-CONVEX-GUIDE-URL-HERE)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Environment setup:
 
-## Deploy on Vercel
+- Local Next.js: `.env.local` (copy from `.env.example`)
+- Convex environment variables: set these in your Convex deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Required Convex env vars:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+AI_GATEWAY_API_KEY
+BETTER_AUTH_SECRE
+ELEVENLABS_API_KEY
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+OPENAI_API_KEY
+R2_ACCESS_KEY_ID
+R2_BUCKET
+R2_ENDPOINT
+R2_SECRET_ACCESS_KEY
+R2_TOKEN
+RESEND_API_KEY
+RESEND_FROM
+SCORECARD_API_KEY
+SITE_URL
+UPSTASH_REDIS_REST_TOKEN
+UPSTASH_REDIS_REST_URL
+```
+
+## 👥 Team
+
+Project by the Audiolingu team for The Modern Stack Hackathon. Add yourself and contributors here.
+
+## 📜 License
+
+MIT — see `LICENSE` for details.

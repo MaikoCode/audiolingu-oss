@@ -1,0 +1,4 @@
+.carousel-3d-img {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
