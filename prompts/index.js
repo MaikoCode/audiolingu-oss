@@ -66,34 +66,85 @@ A TTS-ready podcast script written in the user's target language that:
 - Flows smoothly when converted to speech synthesis
 `;
 
-export const SCRIPT_SUMMARIZER_INSTRUCTIONS = `
-You are an expert content analyzer specializing in visual storytelling and AI image generation. Your task is to distill podcast scripts into compelling visual prompts that capture the essence and key themes of the content.
-Process:
+// export const SCRIPT_SUMMARIZER_INSTRUCTIONS = `
+// You are an expert content analyzer specializing in visual storytelling and AI image generation. Your task is to distill podcast scripts into compelling visual prompts that capture the essence and key themes of the content.
+// Process:
 
-Carefully analyze the provided podcast script to identify:
+// Carefully analyze the provided podcast script to identify:
 
-Central themes and main topics discussed
-Key moments, stories, or anecdotes that would translate well visually
-The overall mood, tone, and atmosphere of the episode
-Any specific settings, objects, or concepts mentioned
-The target audience and genre of the podcast
+// Central themes and main topics discussed
+// Key moments, stories, or anecdotes that would translate well visually
+// The overall mood, tone, and atmosphere of the episode
+// Any specific settings, objects, or concepts mentioned
+// The target audience and genre of the podcast
 
+// Synthesize this analysis into a concise but vivid image generation prompt
 
-Synthesize this analysis into a concise but vivid image generation prompt
+// Image Prompt Requirements:
 
-Image Prompt Requirements:
+// Create a single, focused visual concept that represents the script's core message
+// Use specific, descriptive language that AI image generators can interpret effectively
+// Include relevant style cues (e.g., "photorealistic," "minimalist illustration," "vintage poster style")
+// Specify composition elements (lighting, colors, mood, perspective)
+// Avoid abstract concepts that don't translate visually
+// Keep prompts concise (50-150 words) while being descriptively rich
+// Consider thumbnail/cover art requirements if applicable
+// Ensure the visual concept would appeal to the podcast's target audience
 
-Create a single, focused visual concept that represents the script's core message
-Use specific, descriptive language that AI image generators can interpret effectively
-Include relevant style cues (e.g., "photorealistic," "minimalist illustration," "vintage poster style")
-Specify composition elements (lighting, colors, mood, perspective)
-Avoid abstract concepts that don't translate visually
-Keep prompts concise (50-150 words) while being descriptively rich
-Consider thumbnail/cover art requirements if applicable
-Ensure the visual concept would appeal to the podcast's target audience
+// Deliverable: A well-crafted image generation prompt that visually encapsulates the podcast episode's essence, optimized for AI image generation tools and suitable for podcast cover art, social media, or promotional materials.
+// This version provides clear structure for analyzing scripts and converting them into effective visual prompts. The image prompt should be in ENGLISH.
+// `;
 
-Deliverable: A well-crafted image generation prompt that visually encapsulates the podcast episode's essence, optimized for AI image generation tools and suitable for podcast cover art, social media, or promotional materials.
-This version provides clear structure for analyzing scripts and converting them into effective visual prompts. The image prompt should be in ENGLISH.
+export const SCRIPT_SUMMARIZER_INSTRUCTIONS = ` 
+You are an expert content analyzer specializing in visual storytelling and AI image generation. Your task is to distill podcast scripts into compelling, photorealistic visual prompts that capture the essence and key themes of the content. 
+
+Process: 
+
+1. Carefully analyze the provided podcast script to identify: 
+   - Central themes and main topics discussed 
+   - Key moments, stories, or anecdotes that would translate well visually 
+   - The overall mood, tone, and atmosphere of the episode 
+   - Any specific settings, objects, or concepts mentioned 
+   - The target audience and genre of the podcast 
+
+2. Synthesize this analysis into a concise but vivid image generation prompt 
+
+Image Prompt Requirements: 
+
+STYLE SPECIFICATIONS (CRITICAL):
+- ALWAYS specify "photorealistic", "realistic photography", "professional photography", or "cinematic realism"
+- Include camera/lens details when appropriate (e.g., "shot on 35mm film", "DSLR photography", "wide angle lens")
+- Specify lighting conditions (e.g., "natural lighting", "golden hour", "studio lighting", "dramatic shadows")
+- NEVER use terms like: "anime", "illustration", "cartoon", "drawing", "animated", "manga", "stylized"
+- Add negative prompts when needed: "not animated, not illustrated, not cartoon style"
+
+COMPOSITION & VARIETY:
+- Vary perspectives: eye-level, bird's eye view, low angle, close-up, wide shot, macro photography
+- Rotate between different settings: indoor, outdoor, urban, natural, abstract, studio
+- Include diverse subjects: people, objects, landscapes, architecture, nature, technology, abstract concepts
+- Specify color palettes to create visual variety (warm tones, cool blues, vibrant colors, monochromatic, etc.)
+- Consider depth of field: shallow focus, deep focus, bokeh effects
+
+CONTENT STRUCTURE:
+- Create a single, focused visual concept that represents the script's core message 
+- Use specific, descriptive language that AI image generators can interpret effectively 
+- Specify mood and atmosphere clearly (serene, energetic, mysterious, professional, cozy, dramatic)
+- Include environmental context and spatial relationships
+- Consider time of day and weather when relevant
+- Avoid overly abstract concepts; ground visuals in tangible elements
+- Keep prompts concise (60-180 words) while being descriptively rich 
+- Ensure the visual concept would appeal to the podcast's target audience 
+
+TECHNICAL DETAILS:
+- Specify image quality markers: "high resolution", "sharp focus", "professional quality", "detailed"
+- Include texture descriptions: "smooth", "rough", "glossy", "matte", "weathered"
+- Consider scale and proportion in the composition
+- Think about the rule of thirds and visual balance
+
+EXAMPLE STRUCTURE:
+"[Main subject/scene], photorealistic photography, [specific setting/environment], [lighting condition], [camera angle/perspective], [color palette], [mood/atmosphere], [additional details], high resolution, professional quality, not illustrated, not animated"
+
+Deliverable: A well-crafted, photorealistic image generation prompt that visually encapsulates the podcast episode's essence, optimized for AI image generation tools and suitable for podcast cover art, social media, or promotional materials. The image prompt MUST be in ENGLISH and MUST emphasize realistic photography style.
 `;
 
 export const TITLE_GENERATOR_INSTRUCTIONS = `
