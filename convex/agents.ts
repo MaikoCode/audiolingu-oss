@@ -10,10 +10,12 @@ import {
   TITLE_GENERATOR_INSTRUCTIONS,
   EPISODE_SUMMARY_INSTRUCTIONS,
   QUIZ_GENERATOR_INSTRUCTIONS,
+  FEEDBACK_ANALYZER_INSTRUCTIONS,
 } from "../prompts/index";
 
 export const pullUserProfile = createTool({
-  description: "Pull the user's profile and interests",
+  description:
+    "Pull the user's profile, interests, and personalized internal prompt (if available)",
   args: z.object({
     userId: z.string().describe("The user's id or 'current_user'"),
   }),
@@ -27,6 +29,7 @@ export const pullUserProfile = createTool({
       episode_duration: number;
     };
     interests: string[];
+    internal_prompt: string | null;
   }> => {
     // ctx has agent, userId, threadId, messageId
     // as well as ActionCtx properties like auth, storage, runMutation, and runAction
@@ -59,6 +62,11 @@ export const pullUserProfile = createTool({
       throw new Error("User profile not found");
     }
 
+    // Fetch internal prompt from user record
+    const user = await ctx.runQuery(internal.users.getUserById, {
+      userId: targetUserId,
+    });
+
     return {
       learningProfile: {
         target_language: result.learningProfile.target_language || "",
@@ -66,8 +74,9 @@ export const pullUserProfile = createTool({
         episode_duration: result.learningProfile.episode_duration,
       },
       interests: result.interests.filter(
-        (interest): interest is string => interest !== undefined
+        (interest: unknown): interest is string => interest !== undefined
       ),
+      internal_prompt: user?.internal_prompt ?? null,
     };
   },
 });
@@ -116,6 +125,125 @@ export const pullPastEpisodes = createTool({
     });
     console.log("The old episodes are: ", episodes);
     return episodes;
+  },
+});
+
+export const pullUserFeedback = createTool({
+  description:
+    "Fetch all episodes with user feedback (likes/dislikes) including titles, summaries, transcripts, and feedback comments to identify preference patterns",
+  args: z.object({
+    userId: z.string().describe("The user's id or 'current_user'"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(50)
+      .describe("Maximum episodes with feedback to fetch, default 50"),
+  }),
+  handler: async (
+    ctx,
+    args
+  ): Promise<
+    Array<{
+      episodeId: Id<"episodes">;
+      title: string;
+      summary: string | undefined;
+      transcript: string | undefined;
+      language: string;
+      proficiency_level: "A1" | "A2" | "B1" | "B2" | "C1";
+      durationSeconds: number | undefined;
+      feedback: "good" | "bad" | undefined;
+      feedbackComment: string | undefined;
+      createdAt: number;
+    }>
+  > => {
+    const maybeCtx = ctx as unknown as { userId?: string };
+    let targetUserId: Id<"users"> | null = maybeCtx.userId
+      ? (maybeCtx.userId as unknown as Id<"users">)
+      : null;
+
+    if (!targetUserId) {
+      if (args.userId === "current_user" || args.userId === "me") {
+        const me: { _id: Id<"users"> } | null = await ctx.runQuery(
+          internal.users.current,
+          {}
+        );
+        targetUserId = me?._id ?? null;
+      } else if (args.userId) {
+        targetUserId = args.userId as unknown as Id<"users">;
+      }
+    }
+
+    if (!targetUserId) throw new Error("Unable to resolve user id");
+
+    const feedbackData: Array<{
+      episodeId: Id<"episodes">;
+      title: string;
+      summary: string | undefined;
+      transcript: string | undefined;
+      language: string;
+      proficiency_level: "A1" | "A2" | "B1" | "B2" | "C1";
+      durationSeconds: number | undefined;
+      feedback: "good" | "bad" | undefined;
+      feedbackComment: string | undefined;
+      createdAt: number;
+    }> = await ctx.runQuery(internal.episodes.getFeedbackData, {
+      userId: targetUserId,
+      limit: args.limit ?? 50,
+    });
+
+    console.log(`Fetched ${feedbackData.length} episodes with feedback`);
+    return feedbackData;
+  },
+});
+
+export const updateInternalPrompt = createTool({
+  description:
+    "Update the user's internal prompt to guide future podcast generation based on analyzed feedback patterns. ONLY use this when you have HIGH CONFIDENCE in the patterns (3+ supporting instances).",
+  args: z.object({
+    userId: z.string().describe("The user's id or 'current_user'"),
+    internalPrompt: z
+      .string()
+      .describe(
+        "The new internal prompt (100-300 words) with specific, actionable guidance"
+      ),
+    reasoning: z
+      .string()
+      .describe(
+        "Brief explanation of why this update is warranted and what patterns support it"
+      ),
+  }),
+  handler: async (ctx, args) => {
+    const maybeCtx = ctx as unknown as { userId?: string };
+    let targetUserId: Id<"users"> | null = maybeCtx.userId
+      ? (maybeCtx.userId as unknown as Id<"users">)
+      : null;
+
+    if (!targetUserId) {
+      if (args.userId === "current_user" || args.userId === "me") {
+        const me = await ctx.runQuery(internal.users.current, {});
+        targetUserId = me?._id ?? null;
+      } else if (args.userId) {
+        targetUserId = args.userId as unknown as Id<"users">;
+      }
+    }
+
+    if (!targetUserId) throw new Error("Unable to resolve user id");
+
+    await ctx.runMutation(internal.users.updateInternalPrompt, {
+      userId: targetUserId,
+      internalPrompt: args.internalPrompt,
+    });
+
+    console.log(
+      `Updated internal prompt for user ${targetUserId}. Reasoning: ${args.reasoning}`
+    );
+
+    return {
+      success: true,
+      message: "Internal prompt updated successfully",
+    };
   },
 });
 
@@ -273,5 +401,45 @@ export const generateQuizFromScript = internalAction({
         args.script,
     });
     return result.text;
+  },
+});
+
+// Feedback analyzer agent
+
+export const feedback_analyzer = new Agent(components.agent, {
+  name: "Feedback Analyzer",
+  languageModel: "openai/gpt-5",
+  instructions: FEEDBACK_ANALYZER_INSTRUCTIONS,
+  tools: {
+    pullUserFeedback,
+    updateInternalPrompt,
+  },
+  maxSteps: 30,
+});
+
+export const analyzeFeedbackAndUpdatePrompt = internalAction({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    console.log(`Starting feedback analysis for user ${args.userId}`);
+
+    const { thread } = await feedback_analyzer.continueThread(ctx, {
+      threadId: (
+        await feedback_analyzer.createThread(ctx, { userId: args.userId })
+      ).threadId,
+      userId: args.userId,
+    });
+
+    const result = await thread.generateText({
+      prompt: `Analyze all available feedback for user '${args.userId}' and determine if the internal prompt should be updated.
+
+Remember:
+- Use pullUserFeedback to gather data
+- Be CONSERVATIVE - only update with HIGH CONFIDENCE patterns (3+ supporting instances)
+- If insufficient data or no clear patterns, do NOT update
+- Provide a summary of your analysis and decision`,
+    });
+
+    console.log("Feedback analysis result:", result.text);
+    return { analysis: result.text };
   },
 });

@@ -3,9 +3,11 @@ import {
   internalQuery,
   query,
   mutation,
+  action,
 } from "./_generated/server";
 import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 const now = () => Date.now();
 
@@ -368,6 +370,38 @@ export const getPastSummaries = internalQuery({
   },
 });
 
+export const getFeedbackData = internalQuery({
+  args: { userId: v.id("users"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = Math.min(Math.max(args.limit ?? 50, 1), 100);
+
+    // Fetch all episodes with feedback
+    const allEpisodes = await ctx.db
+      .query("episodes")
+      .withIndex("by_user_createdAt", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .collect();
+
+    // Filter episodes that have feedback
+    const episodesWithFeedback = allEpisodes
+      .filter((e) => e.feedback !== undefined)
+      .slice(0, limit);
+
+    return episodesWithFeedback.map((e) => ({
+      episodeId: e._id,
+      title: e.title,
+      summary: e.summary,
+      transcript: e.transcript,
+      language: e.language,
+      proficiency_level: e.proficiency_level,
+      durationSeconds: e.durationSeconds,
+      feedback: e.feedback,
+      feedbackComment: e.feedbackComment,
+      createdAt: e.createdAt,
+    }));
+  },
+});
+
 // Public queries for listing episodes for the current user
 export const myRecentEpisodes = query({
   args: { limit: v.optional(v.number()) },
@@ -428,6 +462,7 @@ export const setFeedback = mutation({
   args: {
     episodeId: v.id("episodes"),
     feedback: v.optional(v.union(v.literal("good"), v.literal("bad"))),
+    feedbackComment: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -446,8 +481,19 @@ export const setFeedback = mutation({
 
     await ctx.db.patch(args.episodeId, {
       feedback: args.feedback,
+      feedbackComment: args.feedbackComment,
       updatedAt: now(),
     });
+
+    // Schedule feedback analysis in the background
+    console.log("Scheduling feedback analysis for user ", user._id);
+    await ctx.scheduler.runAfter(
+      0,
+      internal.agents.analyzeFeedbackAndUpdatePrompt,
+      {
+        userId: user._id,
+      }
+    );
 
     return { ok: true } as const;
   },

@@ -1,4 +1,9 @@
-import { mutation, query, internalQuery } from "./_generated/server";
+import {
+  mutation,
+  query,
+  internalQuery,
+  internalMutation,
+} from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -32,6 +37,13 @@ export const current = internalQuery({
       )
       .unique();
     return existing ?? null;
+  },
+});
+
+export const getUserById = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.userId);
   },
 });
 
@@ -442,5 +454,26 @@ export const getPreferredVoiceByUserId = internalQuery({
     const user = await ctx.db.get(args.userId);
     if (!user) return null;
     return user.preferred_voice ?? null;
+  },
+});
+
+export const updateInternalPrompt = internalMutation({
+  args: {
+    userId: v.id("users"),
+    internalPrompt: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
+
+    await ctx.db.patch(args.userId, {
+      internal_prompt: args.internalPrompt,
+      updatedAt: now(),
+    });
+
+    console.log(
+      `Internal prompt updated for user ${args.userId}. Length: ${args.internalPrompt.length} chars`
+    );
+    return { ok: true } as const;
   },
 });

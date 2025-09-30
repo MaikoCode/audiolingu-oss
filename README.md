@@ -19,7 +19,7 @@
 
 You know that stage when you're learning a new language—when you've mastered the basics and it's time to consume real content to improve your understanding and proficiency? Whether it's watching movies, listening to podcasts, or reading in your target language, immersion is key.
 
-**Audiolingu** is an AI-powered podcast generator tailored for language learning. You specify your target language, current level, and interests, and it generates custom podcast episodes designed just for you. Each episode includes interactive transcripts, AI-generated quizzes to test comprehension, multiple voice options, and progress tracking to help you level up—all built for The Modern Stack Hackathon.
+**Audiolingu** is an AI-powered podcast generator tailored for language learning. You specify your target language, current level, and interests, and it generates custom podcast episodes designed just for you. Each episode includes interactive transcripts, AI-generated quizzes to test comprehension, multiple voice options, and progress tracking to help you level up. **The system continuously learns from your feedback**, automatically improving future episodes based on what you like and dislike—all built for The Modern Stack Hackathon.
 
 This repository is fully open source. You can explore, modify, or contribute to the code.
 
@@ -34,6 +34,7 @@ This repository is fully open source. You can explore, modify, or contribute to 
 **🤖 AI-Powered Content**
 
 - Multi-agent AI system (podcast writer, quiz generator, title generator, and more)
+- **Intelligent feedback analyzer** that learns from your likes/dislikes to automatically improve future episodes
 - Automated daily episode generation workflows using Convex Workflows and Cron jobs
 - AI-generated custom cover art for each episode
 - Content tailored to avoid repetition by analyzing past episodes
@@ -46,6 +47,7 @@ This repository is fully open source. You can explore, modify, or contribute to 
 **⚙️ Personalization & Automation**
 
 - Comprehensive onboarding flow (target language, proficiency level, interests, voice preference)
+- **Adaptive learning system**: AI analyzes your episode feedback (likes, dislikes, and comments) to identify patterns and automatically personalize future content
 - Daily cron jobs to automatically generate new episodes
 - Email notifications via Resend when your episode is ready
 - Opt-in/opt-out controls for daily podcasts and email preferences
@@ -72,7 +74,8 @@ This repository is fully open source. You can explore, modify, or contribute to 
 
 **AI & Generation**
 
-- OpenAI GPT-5 for multi-agent system (podcast generation, quiz creation, content analysis)
+- OpenAI GPT-5 for multi-agent system (podcast generation, quiz creation, content analysis, feedback analysis)
+- Intelligent feedback loop: AI agent analyzes user preferences to continuously improve episode quality
 - OpenAI GPT-Image-1 for AI-generated episode cover art
 - ElevenLabs for high-quality text-to-speech with word-level alignment
 - Scorecard for AI evaluation, A/B testing, and improving model reliability

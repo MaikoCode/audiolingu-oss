@@ -24,6 +24,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type Episode = {
   _id: Id<"episodes">;
@@ -68,6 +77,14 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
     string | undefined
   >(undefined);
   const [isDownloading, setIsDownloading] = React.useState<boolean>(false);
+
+  // Feedback dialog state
+  const [feedbackDialogOpen, setFeedbackDialogOpen] =
+    React.useState<boolean>(false);
+  const [pendingFeedback, setPendingFeedback] = React.useState<
+    "good" | "bad" | undefined
+  >(undefined);
+  const [feedbackComment, setFeedbackComment] = React.useState<string>("");
 
   const sanitizeFilename = (name: string) => {
     return name
@@ -121,12 +138,40 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
     }
   };
 
-  const handleSetFeedback = async (value: "good" | "bad" | undefined) => {
+  const handleOpenFeedbackDialog = (value: "good" | "bad") => {
+    // If clicking the same feedback, remove it
+    if (episode.feedback === value) {
+      handleSubmitFeedback(undefined, "");
+      return;
+    }
+    // Otherwise open dialog for new feedback
+    setPendingFeedback(value);
+    setFeedbackComment("");
+    setFeedbackDialogOpen(true);
+  };
+
+  const handleSubmitFeedback = async (
+    value: "good" | "bad" | undefined,
+    comment: string
+  ) => {
     try {
-      await setFeedback({ episodeId: episode._id, feedback: value });
+      await setFeedback({
+        episodeId: episode._id,
+        feedback: value,
+        feedbackComment: comment || undefined,
+      });
+      setFeedbackDialogOpen(false);
+      setFeedbackComment("");
+      setPendingFeedback(undefined);
     } catch {
       // no-op
     }
+  };
+
+  const handleCancelFeedback = () => {
+    setFeedbackDialogOpen(false);
+    setFeedbackComment("");
+    setPendingFeedback(undefined);
   };
 
   // reserved for future inline controls
@@ -324,11 +369,7 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
                             episode.feedback === "good" ? "default" : "ghost"
                           }
                           aria-label="Like this episode"
-                          onClick={() =>
-                            handleSetFeedback(
-                              episode.feedback === "good" ? undefined : "good"
-                            )
-                          }
+                          onClick={() => handleOpenFeedbackDialog("good")}
                         >
                           ❤️
                         </Button>
@@ -343,11 +384,7 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
                             episode.feedback === "bad" ? "destructive" : "ghost"
                           }
                           aria-label="Downvote this episode"
-                          onClick={() =>
-                            handleSetFeedback(
-                              episode.feedback === "bad" ? undefined : "bad"
-                            )
-                          }
+                          onClick={() => handleOpenFeedbackDialog("bad")}
                         >
                           ⬇️
                         </Button>
@@ -361,6 +398,57 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
           </div>
         </div>
       </CardContent>
+
+      {/* Feedback Dialog */}
+      <Dialog open={feedbackDialogOpen} onOpenChange={setFeedbackDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {pendingFeedback === "good"
+                ? "You liked this episode! ❤️"
+                : "Help us improve 💭"}
+            </DialogTitle>
+            <DialogDescription>
+              {pendingFeedback === "good"
+                ? "Want to share what you loved about it? (optional)"
+                : "What didn't work for you? Your feedback helps us create better episodes."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              placeholder={
+                pendingFeedback === "good"
+                  ? "E.g., Great topic choice, perfect complexity level..."
+                  : "E.g., Too complex, not interesting..."
+              }
+              value={feedbackComment}
+              onChange={(e) => setFeedbackComment(e.target.value)}
+              className="min-h-[100px]"
+              maxLength={500}
+            />
+            <p className="text-xs text-muted-foreground text-right">
+              {feedbackComment.length}/500 characters
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelFeedback}
+              type="button"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                handleSubmitFeedback(pendingFeedback, feedbackComment)
+              }
+              type="button"
+            >
+              Submit Feedback
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
