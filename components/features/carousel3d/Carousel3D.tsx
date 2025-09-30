@@ -11,6 +11,7 @@ export interface CarouselItem {
   subtitle?: string;
   cover: string;
   description?: string;
+  audioUrl?: string;
   // Allow additional custom properties, but discourage 'any' in use
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
@@ -61,6 +62,7 @@ export default function Carousel3D({
   const [startRotation, setStartRotation] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const getCurrentIndex = useCallback(() => {
     const itemAngle = 360 / items.length;
@@ -131,7 +133,24 @@ export default function Carousel3D({
   };
 
   const handlePlayPause = () => {
-    setIsPlaying((prev) => !prev);
+    // Only toggle if the current item has an audio URL
+    if (!currentItem?.audioUrl) return;
+
+    const next = !isPlaying;
+    setIsPlaying(next);
+
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (next) {
+      // Resume/play current track
+      audio.play().catch(() => {
+        // If play fails (autoplay policy), revert state
+        setIsPlaying(false);
+      });
+    } else {
+      audio.pause();
+    }
   };
 
   useEffect(() => {
@@ -175,6 +194,48 @@ export default function Carousel3D({
     items.length,
     getCurrentIndex,
   ]);
+
+  // Keep audio element in sync with the current item and play state
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    // Bind onended to reset play state
+    const handleEnded = () => setIsPlaying(false);
+    audio.addEventListener("ended", handleEnded);
+
+    return () => {
+      audio.removeEventListener("ended", handleEnded);
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const src = currentItem?.audioUrl || "";
+
+    // If track changed, update source and optionally autoplay
+    if (audio.src !== src) {
+      // Pause before switching
+      audio.pause();
+      audio.src = src;
+      // Reset to start for new track
+      audio.currentTime = 0;
+    }
+
+    if (!src) {
+      // No audio for this item
+      if (isPlaying) setIsPlaying(false);
+      return;
+    }
+
+    if (isPlaying) {
+      audio.play().catch(() => {
+        setIsPlaying(false);
+      });
+    }
+  }, [currentItem?.audioUrl, isPlaying]);
 
   return (
     <div className={`w-full relative ${className}`}>
@@ -326,6 +387,8 @@ export default function Carousel3D({
             type="button"
             aria-label={isPlaying ? "Pause" : "Play"}
             onClick={handlePlayPause}
+            aria-pressed={isPlaying}
+            disabled={!currentItem?.audioUrl}
             className="rounded-full w-12 h-12 bg-primary text-primary-foreground shadow-lg hover:bg-primary focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary"
           >
             <span className="inline-flex items-center justify-center w-10 h-10 rounded-full text-black">
@@ -363,6 +426,13 @@ export default function Carousel3D({
           )}
         </div>
       )}
+
+      {/* Hidden audio element used for playback */}
+      <audio
+        ref={audioRef}
+        preload="none"
+        src={currentItem?.audioUrl || undefined}
+      />
     </div>
   );
 }

@@ -34,7 +34,7 @@ This repository is fully open source. You can explore, modify, or contribute to 
 **🤖 AI-Powered Content**
 
 - Multi-agent AI system (podcast writer, quiz generator, title generator, and more)
-- Automated daily episode generation workflows using Convex Workflows
+- Automated daily episode generation workflows using Convex Workflows and Cron jobs
 - AI-generated custom cover art for each episode
 - Content tailored to avoid repetition by analyzing past episodes
 
@@ -159,4 +159,4 @@ Project by [@Maiko](https://x.com/Maikoke5) for The Modern Stack Hackathon.
 
 ## 📜 License
 
-MIT — see `LICENSE` for details.
+MIT
