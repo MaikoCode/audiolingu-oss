@@ -27,10 +27,9 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_token", ["tokenIdentifier"]) // required for auth lookups
+    .index("by_token", ["tokenIdentifier"])
     .index("by_email", ["email"]),
 
-  // Learning profiles allow users to keep multiple configurations over time
   learning_profiles: defineTable({
     userId: v.id("users"),
     active: v.boolean(),
@@ -49,7 +48,6 @@ export default defineSchema({
     .index("by_user_active", ["userId", "active"])
     .index("by_user", ["userId"]),
 
-  // Curated topics catalog
   topics: defineTable({
     slug: v.string(), // unique key like "technology", "sports"
     title: v.string(),
@@ -62,7 +60,6 @@ export default defineSchema({
     .index("by_slug", ["slug"]) // enforce uniqueness at application level
     .index("by_active", ["isActive"]),
 
-  // Many-to-many join for user interests
   user_interests: defineTable({
     userId: v.id("users"),
     topicId: v.id("topics"),
@@ -146,6 +143,6 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_publicId", ["publicId"]) // for anonymous public access
+    .index("by_publicId", ["publicId"])
     .index("by_episode", ["episodeId"]),
 });

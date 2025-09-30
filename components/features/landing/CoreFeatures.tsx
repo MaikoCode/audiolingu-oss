@@ -19,6 +19,11 @@ const features: ReadonlyArray<{ id: string; title: string }> = [
     title:
       "Custom podcast episodes generated based on your level, language, and interests",
   },
+  {
+    id: "auto-improvement",
+    title:
+      "Adaptive learning system that automatically improves content based on your feedback and performance",
+  },
 ] as const;
 
 export default function CoreFeatures() {
@@ -35,7 +40,7 @@ export default function CoreFeatures() {
           Core Learning Experience
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {features.map((feature) => (
             <Card key={feature.id} className="h-full">
               <CardHeader>

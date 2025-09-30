@@ -95,12 +95,16 @@ export const AppSidebar = () => {
                   <Avatar>
                     <AvatarImage src={session.data?.user?.image ?? undefined} />
                     <AvatarFallback>
-                      {greeting?.first_name?.[0]?.toUpperCase() ?? "U"}
+                      {greeting?.first_name?.[0]?.toUpperCase() ??
+                        session.data?.user?.email?.[0]?.toUpperCase() ??
+                        "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-start">
                     <span className="text-sm font-medium">
-                      {greeting?.first_name ?? "User"}
+                      {greeting?.first_name ??
+                        session.data?.user?.email ??
+                        "User"}
                     </span>
                   </div>
                 </div>
