@@ -33,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useVapi } from "@/app/hooks/useVapi";
 
 type Episode = {
   _id: Id<"episodes">;
@@ -67,6 +68,7 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
   const existingQuiz = useQuery(api.quizzes.getQuizPublicIdForEpisode, {
     episodeId: episode._id,
   });
+  const userSettings = useQuery(api.users.getMySettings);
   const { setCurrent, openTranscript } = useNowPlaying();
   // bottom bar handles playback; we only provide entry points here
 
@@ -77,6 +79,20 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
     string | undefined
   >(undefined);
   const [isDownloading, setIsDownloading] = React.useState<boolean>(false);
+
+  // Vapi configuration
+  const vapiPublicKey = process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || "";
+  const vapiAssistantId = "86da1ef2-5392-4f78-8668-bb068e179443";
+
+  const {
+    startCall,
+    endCall,
+    isSessionActive,
+    isLoading: isVapiLoading,
+  } = useVapi({
+    publicKey: vapiPublicKey,
+    assistantId: vapiAssistantId,
+  });
 
   // Feedback dialog state
   const [feedbackDialogOpen, setFeedbackDialogOpen] =
@@ -172,6 +188,42 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
     setFeedbackDialogOpen(false);
     setFeedbackComment("");
     setPendingFeedback(undefined);
+  };
+
+  const handlePracticeConversation = async () => {
+    if (isSessionActive) {
+      endCall();
+      return;
+    }
+
+    if (!userSettings || !episode.transcript) return;
+
+    const overrides: Record<string, unknown> = {
+      variableValues: {
+        target_language: episode.language,
+        language_level: episode.proficiency_level,
+        episode_title: episode.title || "Personalized Episode",
+        episode_transcript: episode.transcript,
+      },
+    };
+
+    // Add ElevenLabs voice if user has a preferred voice
+    // if (userSettings.preferred_voice) {
+    //   overrides.voice = {
+    //     voiceId: userSettings.preferred_voice,
+    //     provider: "11labs",
+    //   };
+    // }
+
+    console.log("🎤 Starting Vapi call with overrides:", {
+      language: episode.language,
+      level: episode.proficiency_level,
+      title: episode.title,
+      hasTranscript: !!episode.transcript,
+      voiceId: userSettings.preferred_voice || "default",
+    });
+
+    await startCall(overrides);
   };
 
   // reserved for future inline controls
@@ -358,6 +410,39 @@ export const EpisodeCard = ({ episode }: { episode: Episode }) => {
                       {isDownloading ? "Downloading…" : "Download"}
                     </span>
                   </Button>
+                </div>
+                <div className="flex items-center gap-2">
+                  {vapiPublicKey && episode.transcript ? (
+                    <Button
+                      size="sm"
+                      variant={isSessionActive ? "destructive" : "default"}
+                      aria-label={
+                        isSessionActive
+                          ? "End conversation"
+                          : "Practice conversation"
+                      }
+                      disabled={isVapiLoading || !userSettings}
+                      onClick={handlePracticeConversation}
+                      className={cn(
+                        !isSessionActive &&
+                          "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                      )}
+                    >
+                      {isVapiLoading ? (
+                        <span className="inline-flex items-center">
+                          <span
+                            className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                          Connecting...
+                        </span>
+                      ) : isSessionActive ? (
+                        "🔴 End Call"
+                      ) : (
+                        "🎤 Practice Conversation"
+                      )}
+                    </Button>
+                  ) : null}
                 </div>
                 <TooltipProvider>
                   <div className="flex items-center gap-2">

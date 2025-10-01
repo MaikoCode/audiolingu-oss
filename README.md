@@ -43,6 +43,7 @@ This repository is fully open source. You can explore, modify, or contribute to 
 
 - Curated voice catalog with multiple selectable voices via ElevenLabs
 - High-quality text-to-speech with word-level alignment for perfect transcript sync
+- AI voice assistant powered by Vapi for interactive voice conversations and speaking practice
 
 **⚙️ Personalization & Automation**
 
@@ -85,6 +86,7 @@ This repository is fully open source. You can explore, modify, or contribute to 
 - Better Auth for Google OAuth and magic link authentication
 - Resend for transactional emails and daily episode notifications
 - Upstash Redis for rate limiting on magic links
+- Vapi for real-time voice AI assistant and conversational practice
 
 ## 📦 Installation & Usage
 
@@ -152,6 +154,9 @@ SCORECARD_API_KEY
 SITE_URL
 UPSTASH_REDIS_REST_TOKEN
 UPSTASH_REDIS_REST_URL
+REACT_APP_VAPI_PUBLIC_KEY
+REACT_APP_VAPI_ASSISTANT_ID
+REACT_APP_VAPI_BASE_URL (optional)
 ```
 
 ## 👥 Team
