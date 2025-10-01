@@ -124,8 +124,6 @@ npm run build
 npm run start
 ```
 
-## 🌍 Demo
-
 ## ☁️ Deployment (Convex)
 
 Follow the Convex deployment guide: [Convex Deployment Guide](https://docs.convex.dev/production/hosting/)
